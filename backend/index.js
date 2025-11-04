@@ -45,34 +45,47 @@ app.post('/api/simplify', async (req, res) => {
     return res.status(400).json({ error: 'Text is required for simplification.' });
   }
 
+  let audienceInstruction = '';
+  switch (targetAudience) {
+    case 'Algemeen':
+      audienceInstruction = 'for a broad audience, like "your uncle at the family party."';
+      break;
+    case 'Jongeren':
+      audienceInstruction = 'for a 20-year-old audience, using modern, engaging, and slightly informal language, including relevant slang or expressions where appropriate, but maintaining clarity.';
+      break;
+    case 'Ouderen':
+      audienceInstruction = 'for an elderly audience, using formal, respectful, and very clear language, avoiding jargon and complex sentence structures.';
+      break;
+  }
+
   let formatInstruction = '';
+  let imageSuggestion = '';
   switch (outputFormat) {
     case 'Samenvatting':
-      formatInstruction = 'Provide a concise summary.';
+      formatInstruction = 'Provide a concise summary. Do NOT use numbered lists.';
       break;
     case 'Korte versie (Instagram-achtig)':
-      formatInstruction = 'Provide a very short version, suitable for Instagram.';
+      formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis. Do NOT use numbered lists.';
+      imageSuggestion = '\nSuggest a compelling image description for this Instagram post.';
       break;
     case 'Medium versie (LinkedIn-achtig)':
-      formatInstruction = 'Provide a medium-length version, suitable for LinkedIn.';
+      formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable. Do NOT use numbered lists.';
       break;
     case 'Opsommingstekens':
       formatInstruction = 'Provide the output in bullet points.';
       break;
-    default:
-      formatInstruction = 'Provide a concise summary.';
   }
 
   try {
-    const prompt = `You are a helpful assistant that simplifies complex ${language} political texts for a ${targetAudience} audience into clear, active, empathetic, and non-condescending language, like "your uncle at the family party."
-    Your output should consist of short sentences and short words, with no more than 3 syllables per word.
-    Follow these three steps:
-    1. Start with an emotional core message about people.
-    2. Name the problem briefly.
-    3. Conclude with a clear message.
+    const prompt = `You are a helpful assistant that simplifies complex ${language} political texts ${audienceInstruction} into clear, active, empathetic, and non-condescending language.
+    Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone.
+    Follow these three steps, clearly delineating each step:
+    1. Start with a strong, emotional core message about people.
+    2. Name the problem briefly and clearly.
+    3. Conclude with a clear, impactful message.
     ${formatInstruction}
 
-    Please simplify the following ${language} text and respond in ${language}:
+    Please simplify the following ${language} text and respond in ${language}. Ensure the tone is strongly connotated and impactful. ${imageSuggestion}
 
     "${text}"`;
 
