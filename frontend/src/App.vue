@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
 const inputText = ref('');
 const simplifiedText = ref(''); // Added comment to force rebuild and update logo
