@@ -22,7 +22,20 @@ app.use(cors({
 }));
 
 // MongoDB Connection
-const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mensentaalmachine';
+let mongoUri;
+if (process.env.APP_CONFIG) {
+  const config = JSON.parse(process.env.APP_CONFIG);
+  const mongoPassword = process.env.MONGO_PASSWORD; // You need to set this in EvenNode environment variables
+  if (config.mongo && mongoPassword) {
+    mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${config.mongo.hostString}`;
+  } else {
+    console.error('EvenNode APP_CONFIG or MONGO_PASSWORD not properly configured.');
+    mongoUri = 'mongodb://localhost:27017/mensentaalmachine'; // Fallback for local development
+  }
+} else {
+  mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mensentaalmachine'; // Fallback for local development or other deployments
+}
+
 mongoose.connect(mongoUri)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
