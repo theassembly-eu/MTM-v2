@@ -101,6 +101,45 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.tldr-section {
+  background-color: #f0f8ff; /* Light blue background */
+  border: 1px solid #b0e0e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.tldr-section h3 {
+  color: #2c3e50;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.tldr-section p {
+  margin-bottom: 0.5rem;
+}
+
+.suggested-copy-section {
+  background-color: #f8f8f8; /* Light gray background */
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.suggested-copy-section h3 {
+  color: #34495e;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.suggested-copy-section p {
+  font-style: italic;
+  color: #666;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   #app {

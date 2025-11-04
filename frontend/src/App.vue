@@ -15,6 +15,27 @@ const newOriginalTerm = ref('');
 const newSimplifiedTerm = ref('');
 const editingEntryId = ref(null);
 
+// Computed property to parse simplifiedText
+const parsedSimplifiedText = computed(() => {
+  if (!simplifiedText.value) return { tldr: [], suggestedCopy: '' };
+
+  const parts = simplifiedText.value.split('---').map(part => part.trim()).filter(part => part.length > 0);
+
+  let tldr = [];
+  let suggestedCopy = '';
+
+  if (parts.length >= 4) {
+    // Assuming the first three parts are Emotional, Problem, Concluding
+    tldr = parts.slice(0, 3);
+    suggestedCopy = parts.slice(3).join('---').trim(); // Rejoin if there are more '---' in the suggested copy
+  } else if (parts.length > 0) {
+    // Fallback if structure is not perfectly followed, treat everything as suggested copy
+    suggestedCopy = simplifiedText.value;
+  }
+
+  return { tldr, suggestedCopy };
+});
+
 // --- Dictionary Management Functions ---
 async function fetchDictionaryEntries() {
   console.log('Fetching dictionary entries...');
@@ -181,7 +202,17 @@ onMounted(() => {
     <button @click="simplifyText">Vereenvoudig Tekst</button>
 
     <h2>Vereenvoudigde Tekst:</h2>
-    <p>{{ simplifiedText }}</p>
+    <div v-if="simplifiedText">
+      <div class="tldr-section">
+        <h3>Samenvatting voor Marketeers (TLDR):</h3>
+        <p v-for="(part, index) in parsedSimplifiedText.tldr" :key="index" v-html="part"></p>
+      </div>
+      <div class="suggested-copy-section">
+        <h3>Voorgestelde Tekst:</h3>
+        <p v-html="parsedSimplifiedText.suggestedCopy"></p>
+      </div>
+    </div>
+    <p v-else>Nog geen vereenvoudigde tekst.</p>
 
     <hr>
 
