@@ -7,6 +7,8 @@ const selectedLanguage = ref('Dutch'); // New ref for selected language
 const selectedTargetAudience = ref('Algemeen'); // New ref for selected target audience
 const selectedOutputFormat = ref('Samenvatting'); // New ref for selected output format
 
+const appVersion = ref('1.0.0'); // Set app version from package.json
+
 // Dictionary management refs
 const dictionaryEntries = ref([]);
 const newOriginalTerm = ref('');
@@ -15,19 +17,25 @@ const editingEntryId = ref(null);
 
 // --- Dictionary Management Functions ---
 async function fetchDictionaryEntries() {
+  console.log('Fetching dictionary entries...');
   try {
     const response = await fetch('/api/dictionary');
     if (response.ok) {
       dictionaryEntries.value = await response.json();
+      console.log('Fetched dictionary entries:', dictionaryEntries.value);
     } else {
-      console.error('Fout bij ophalen woordenboek items:', await response.text());
+      const errorText = await response.text();
+      console.error('Fout bij ophalen woordenboek items:', errorText);
+      alert(`Fout bij ophalen woordenboek items: ${errorText}`);
     }
   } catch (error) {
     console.error('Fout bij ophalen woordenboek items:', error);
+    alert(`Netwerkfout bij ophalen woordenboek items: ${error.message}`);
   }
 }
 
 async function addDictionaryEntry() {
+  console.log('Attempting to add dictionary entry...');
   if (!newOriginalTerm.value || !newSimplifiedTerm.value) {
     alert('Beide termen zijn verplicht!');
     return;
@@ -39,6 +47,7 @@ async function addDictionaryEntry() {
       body: JSON.stringify({ originalTerm: newOriginalTerm.value, simplifiedTerm: newSimplifiedTerm.value }),
     });
     if (response.ok) {
+      console.log('Dictionary entry added successfully.');
       newOriginalTerm.value = '';
       newSimplifiedTerm.value = '';
       fetchDictionaryEntries(); // Refresh the list
@@ -54,12 +63,14 @@ async function addDictionaryEntry() {
 }
 
 function editDictionaryEntry(entry) {
+  console.log('Editing dictionary entry:', entry);
   editingEntryId.value = entry._id;
   newOriginalTerm.value = entry.originalTerm;
   newSimplifiedTerm.value = entry.simplifiedTerm;
 }
 
 async function updateDictionaryEntry() {
+  console.log('Attempting to update dictionary entry...');
   if (!editingEntryId.value || !newOriginalTerm.value || !newSimplifiedTerm.value) {
     alert('Beide termen zijn verplicht voor bewerken!');
     return;
@@ -71,31 +82,40 @@ async function updateDictionaryEntry() {
       body: JSON.stringify({ originalTerm: newOriginalTerm.value, simplifiedTerm: newSimplifiedTerm.value }),
     });
     if (response.ok) {
+      console.log('Dictionary entry updated successfully.');
       editingEntryId.value = null;
       newOriginalTerm.value = '';
       newSimplifiedTerm.value = '';
       fetchDictionaryEntries(); // Refresh the list
     } else {
-      console.error('Fout bij bijwerken woordenboek item:', await response.text());
+      const errorText = await response.text();
+      console.error('Fout bij bijwerken woordenboek item:', errorText);
+      alert(`Fout bij bijwerken: ${errorText}`);
     }
   } catch (error) {
     console.error('Fout bij bijwerken woordenboek item:', error);
+    alert(`Netwerkfout bij bijwerken: ${error.message}`);
   }
 }
 
 async function deleteDictionaryEntry(id) {
+  console.log('Attempting to delete dictionary entry:', id);
   if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
   try {
     const response = await fetch(`/api/dictionary/${id}`, {
       method: 'DELETE',
     });
     if (response.ok) {
+      console.log('Dictionary entry deleted successfully.');
       fetchDictionaryEntries(); // Refresh the list
     } else {
-      console.error('Fout bij verwijderen woordenboek item:', await response.text());
+      const errorText = await response.text();
+      console.error('Fout bij verwijderen woordenboek item:', errorText);
+      alert(`Fout bij verwijderen: ${errorText}`);
     }
   } catch (error) {
     console.error('Fout bij verwijderen woordenboek item:', error);
+    alert(`Netwerkfout bij verwijderen: ${error.message}`);
   }
 }
 
@@ -128,7 +148,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <h1>MensentaalMachine</h1>
+    <h1>MensentaalMachine v{{ appVersion }}</h1>
 
     <label for="language-select">Selecteer Taal:</label>
     <select id="language-select" v-model="selectedLanguage">
