@@ -8,7 +8,7 @@ const backendMessage = ref('');
 
 async function fetchBackendMessage() {
   try {
-    const response = await fetch('http://localhost:3000/api/hello');
+    const response = await fetch('/api/hello');
     const data = await response.json();
     backendMessage.value = data.message;
   } catch (error) {
@@ -19,7 +19,7 @@ async function fetchBackendMessage() {
 
 async function simplifyText() {
   try {
-    const response = await fetch('http://localhost:3000/api/simplify', {
+    const response = await fetch('/api/simplify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
