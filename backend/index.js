@@ -60,16 +60,22 @@ app.post('/api/simplify', async (req, res) => {
 
   let formatInstruction = '';
   let imageSuggestion = '';
+  let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
+
+  if (outputFormat === 'Opsommingstekens') {
+    listAvoidance = ''; // Allow bullet points if requested
+  }
+
   switch (outputFormat) {
     case 'Samenvatting':
-      formatInstruction = 'Provide a concise summary. Do NOT use numbered lists.';
+      formatInstruction = 'Provide a concise summary.';
       break;
     case 'Korte versie (Instagram-achtig)':
-      formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis. Do NOT use numbered lists.';
+      formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
       imageSuggestion = '\nSuggest a compelling image description for this Instagram post.';
       break;
     case 'Medium versie (LinkedIn-achtig)':
-      formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable. Do NOT use numbered lists.';
+      formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
       break;
     case 'Opsommingstekens':
       formatInstruction = 'Provide the output in bullet points.';
@@ -79,10 +85,16 @@ app.post('/api/simplify', async (req, res) => {
   try {
     const prompt = `You are a helpful assistant that simplifies complex ${language} political texts ${audienceInstruction} into clear, active, empathetic, and non-condescending language.
     Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone.
-    Follow these three steps, clearly delineating each step:
-    1. Start with a strong, emotional core message about people.
-    2. Name the problem briefly and clearly.
-    3. Conclude with a clear, impactful message.
+    ${listAvoidance}
+
+    Structure your response as follows, clearly separating each part:
+    ---
+    Emotional Core Message: Start with a strong, emotional core message about people.
+    ---
+    Problem Statement: Name the problem briefly and clearly.
+    ---
+    Concluding Message: Conclude with a clear, impactful message.
+    ---
     ${formatInstruction}
 
     Please simplify the following ${language} text and respond in ${language}. Ensure the tone is strongly connotated and impactful. ${imageSuggestion}
