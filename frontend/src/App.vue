@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 
 const inputText = ref('');
-const simplifiedText = ref(''); // Added comment to force rebuild
+const simplifiedText = ref(''); // Added comment to force rebuild and update logo
 const selectedLanguage = ref('Dutch'); // New ref for selected language
 const selectedTargetAudience = ref('Algemeen'); // New ref for selected target audience
 const selectedOutputFormat = ref('Samenvatting'); // New ref for selected output format
