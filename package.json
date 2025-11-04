@@ -1,17 +1,30 @@
 {
-  "name": "mensentaalmachine_new",
+  "name": "mensentaalmachine",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A project to simplify Dutch language",
+  "main": "backend/index.js",
+  "type": "module",
   "scripts": {
-    "start": "node backend/index.js",
-    "build:frontend": "cd frontend && npm install && npm run build -- --outDir ../dist --emptyOutDir",
-    "postinstall": "npm run build:frontend",
+    "start": "npm run build && node backend/index.js",
+    "build": "cd frontend && vite build",
+    "dev": "concurrently \"cd frontend && vite\" \"node backend/index.js\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "devDependencies": {}
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.19.2",
+    "openai": "^6.8.0",
+    "zod": "^4.1.12",
+    "vue": "^3.5.22",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.1.7",
+    "concurrently": "^8.2.2"
+  }
 }
