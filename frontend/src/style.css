@@ -1,11 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Public+Sans:wght@400;600;700&display=swap');
+
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Vooruit Brand Colors */
+  --vooruit-red: #FF0000;
+  --vooruit-black: #000000;
+  --vooruit-white: #FFFFFF;
+
+  font-family: 'Montserrat', 'Public Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.6;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: #333;
-  background-color: #f4f4f4;
+  color: var(--vooruit-black);
+  background-color: var(--vooruit-white);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -19,7 +26,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #e0f2f7; /* Light blue background */
+  background-color: #f0f2f5; /* Light gray background for the page */
 }
 
 #app {
@@ -27,7 +34,7 @@ body {
   margin: 2rem auto;
   padding: 2.5rem;
   text-align: center;
-  background-color: #ffffff; /* White background for the app container */
+  background-color: var(--vooruit-white); /* White background for the app container */
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
@@ -35,32 +42,33 @@ body {
 h1 {
   font-size: 2.8em;
   line-height: 1.2;
-  color: #2c3e50; /* Darker blue-gray for headings */
+  color: var(--vooruit-black); /* Black for headings */
   margin-bottom: 1.5rem;
 }
 
 h2 {
   font-size: 1.8em;
-  color: #34495e;
+  color: var(--vooruit-black);
   margin-top: 2rem;
   margin-bottom: 1rem;
 }
 
 p {
-  color: #555;
+  color: #333; /* Dark gray for text */
   line-height: 1.8;
 }
 
 label {
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--vooruit-black);
   margin-right: 0.5rem;
   margin-bottom: 0.5rem;
   display: inline-block;
 }
 
 select,
-textarea {
+textarea,
+input[type="text"] {
   width: calc(100% - 20px);
   padding: 12px;
   margin-bottom: 1.5rem;
@@ -84,15 +92,15 @@ button {
   font-size: 1.1em;
   font-weight: 600;
   font-family: inherit;
-  background-color: #42b983; /* Vue green */
-  color: white;
+  background-color: var(--vooruit-red); /* Vooruit Red for buttons */
+  color: var(--vooruit-white);
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
   margin-top: 1rem;
 }
 
 button:hover {
-  background-color: #369f6e;
+  background-color: #cc0000; /* Darker red on hover */
   transform: translateY(-2px);
 }
 
@@ -101,43 +109,93 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-.tldr-section {
-  background-color: #f0f8ff; /* Light blue background */
-  border: 1px solid #b0e0e6;
+.simplified-text-container {
+  background-color: #f8f8f8; /* Light gray background */
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 1.5rem;
   margin-top: 2rem;
   text-align: left;
 }
 
-.tldr-section h3 {
-  color: #2c3e50;
-  margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.tldr-section p {
-  margin-bottom: 0.5rem;
-}
-
-.suggested-copy-section {
-  background-color: #f8f8f8; /* Light gray background */
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-  text-align: left;
-}
-
+.tldr-section h3,
 .suggested-copy-section h3 {
-  color: #34495e;
+  color: var(--vooruit-black);
   margin-top: 0;
   margin-bottom: 1rem;
+}
+
+.tldr-section p,
+.suggested-copy-section p {
+  color: #333;
 }
 
 .suggested-copy-section p {
   font-style: italic;
+}
+
+/* Filters in HistoryPage */
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.filters input[type="text"],
+.filters select {
+  width: auto;
+  flex-grow: 1;
+  max-width: 250px;
+  margin-bottom: 0;
+}
+
+/* Result items in HistoryPage */
+.result-item {
+  background: #fdfdfd;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  text-align: left;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.result-item strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--vooruit-black);
+}
+
+.result-item pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #f0f0f0;
+  padding: 1rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #333;
+}
+
+.result-footer {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
   color: #666;
+}
+
+.result-footer .delete-btn {
+  background: #dc3545; /* Bootstrap danger red */
+  color: var(--vooruit-white);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9em;
+}
+
+.result-footer .delete-btn:hover {
+  background: #c82333;
 }
 
 /* Responsive adjustments */
@@ -154,38 +212,82 @@ button:focus-visible {
   h2 {
     font-size: 1.5em;
   }
+
+  .filters {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .filters input[type="text"],
+  .filters select {
+    max-width: 100%;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    color: #e0e0e0;
-    background-color: #2c3e50;
+    color: var(--vooruit-white);
+    background-color: #1a1a1a;
   }
   body {
-    background-color: #212121;
+    background-color: #222222;
   }
   #app {
-    background-color: #34495e;
+    background-color: #2c2c2c;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
   h1,
   h2,
   label {
-    color: #ecf0f1;
+    color: var(--vooruit-white);
   }
   p {
-    color: #bdc3c7;
+    color: #cccccc;
   }
   select,
-  textarea {
-    background-color: #2c3e50;
+  textarea,
+  input[type="text"] {
+    background-color: #3a3a3a;
     border-color: #555;
-    color: #ecf0f1;
+    color: var(--vooruit-white);
   }
   button {
-    background-color: #2ecc71; /* Darker green for dark mode */
+    background-color: var(--vooruit-red); /* Vooruit Red for buttons */
   }
   button:hover {
-    background-color: #27ae60;
+    background-color: #cc0000;
+  }
+  .simplified-text-container {
+    background-color: #3a3a3a;
+    border-color: #555;
+  }
+  .tldr-section h3,
+  .suggested-copy-section h3 {
+    color: var(--vooruit-white);
+  }
+  .tldr-section p,
+  .suggested-copy-section p {
+    color: #cccccc;
+  }
+  .result-item {
+    background: #3a3a3a;
+    border-color: #555;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  }
+  .result-item strong {
+    color: var(--vooruit-white);
+  }
+  .result-item pre {
+    background: #4a4a4a;
+    color: #cccccc;
+  }
+  .result-footer {
+    color: #aaaaaa;
+  }
+  .result-footer .delete-btn {
+    background: #dc3545;
+  }
+  .result-footer .delete-btn:hover {
+    background: #c82333;
   }
 }
