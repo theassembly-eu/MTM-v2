@@ -38,7 +38,7 @@ export default {
 
     const fetchSavedResults = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/saved-results');
+        const response = await axios.get('/api/saved-results');
         savedResults.value = response.data;
       } catch (err) {
         error.value = 'Fout bij het ophalen van opgeslagen resultaten.';
@@ -53,7 +53,7 @@ export default {
         return;
       }
       try {
-        await axios.delete(`http://localhost:3000/api/saved-results/${id}`);
+        await axios.delete(`/api/saved-results/${id}`);
         savedResults.value = savedResults.value.filter(result => result._id !== id);
       } catch (err) {
         error.value = 'Fout bij het verwijderen van het resultaat.';
