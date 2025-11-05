@@ -7,7 +7,7 @@ const simplifiedText = ref('');
 const selectedLanguage = ref('Dutch');
 const selectedTargetAudience = ref('Algemeen');
 const selectedOutputFormat = ref('Samenvatting');
-const appVersion = ref('1.0.1');
+const appVersion = ref('1.0.2');
 
 const dictionaryEntries = ref([]);
 const newOriginalTerm = ref('');

@@ -152,4 +152,58 @@ app.post('/api/simplify', async (req, res) => {
   }
 
   try {
-    const prompt = `You are a helpful seasoned professional in marketing with years of experience that simplifies complex ${language} political texts ${audienceInstruction} into clear, active, empathetic, and non-condescending language.\n    Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone. ABSOLUTELY AVOID technical terms; if a technical term is unavoidable, rephrase it in simple language.\n    ${listAvoidance}\n\n    Structure your response as follows, clearly separating each part with a 
+    const prompt = `You are a helpful seasoned professional in marketing with years of experience that simplifies complex ${language} political texts ${audienceInstruction} into clear, active, empathetic, and non-condescending language.\n    Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone. ABSOLUTELY AVOID technical terms; if a technical term is unavoidable, rephrase it in simple language.\n    ${listAvoidance}\n\n    Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n    ---\n    Emotional Core Message: Start with a strong, emotional core message about people.\n    ---\n    Problem Statement: Name the problem briefly and clearly.\n    ---\n    Concluding Message: Conclude with a clear, impactful message.\n    ---\n    ${formatInstruction}\n    ${dictionaryTerms}\n\n    Please simplify the following ${language} text and respond in ${language}. Ensure the tone is strongly connotated and impactful. ${imageSuggestion}\n\n    "${text}"`;
+
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+
+    const simplifiedText = completion.choices[0].message.content;
+    res.json({ simplifiedText });
+
+  } catch (error) {
+    console.error('Error simplifying text:', error);
+    res.status(500).json({ error: 'Failed to simplify text.' });
+  }
+});
+
+// Saved Results CRUD routes
+app.post('/api/saved-results', async (req, res) => {
+  try {
+    const newSavedResult = new SavedResult(req.body);
+    await newSavedResult.save();
+    res.status(201).json(newSavedResult);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+app.get('/api/saved-results', async (req, res) => {
+  try {
+    const savedResults = await SavedResult.find().sort({ createdAt: -1 });
+    res.json(savedResults);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.delete('/api/saved-results/:id', async (req, res) => {
+  try {
+    await SavedResult.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Saved result deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Serve frontend (static)
+const frontendPath = path.join(__dirname, '../dist'); // dist is in the project root
+app.use(history({ index: '/index.html' }));
+app.use(express.static(frontendPath));
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Backend running on http://0.0.0.0:${PORT}`);
+});

@@ -1,27 +1,15 @@
 import mongoose from 'mongoose';
 
 const savedResultSchema = new mongoose.Schema({
-  initialText: {
+  originalText: {
     type: String,
     required: true,
   },
-  targetAudience: {
+  simplifiedText: {
     type: String,
     required: true,
   },
-  desiredFormat: {
-    type: String,
-    required: true,
-  },
-  resultTLDR: {
-    type: [String],
-    required: true,
-  },
-  resultSuggestedCopy: {
-    type: String,
-    required: true,
-  },
-  timestamp: {
+  createdAt: {
     type: Date,
     default: Date.now,
   },
