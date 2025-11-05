@@ -171,14 +171,14 @@ onMounted(() => {
 
     <h2>Vereenvoudigde Tekst:</h2>
     <div v-if="simplifiedText">
-      <div class="tldr-section">
+      <!-- <div class="tldr-section">
         <h3>Samenvatting voor Marketeers (TLDR):</h3>
         <p v-for="(part, index) in parsedSimplifiedText.tldr" :key="index" v-html="part"></p>
       </div>
       <div class="suggested-copy-section">
         <h3>Voorgestelde Tekst:</h3>
         <p v-html="parsedSimplifiedText.suggestedCopy"></p>
-      </div>
+      </div> -->
       <button @click="saveResult">Opslaan in geschiedenis</button>
     </div>
     <p v-else>Nog geen vereenvoudigde tekst.</p>
