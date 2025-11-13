@@ -8,6 +8,7 @@ const selectedLanguage = ref('Dutch');
 const selectedTargetAudience = ref('Algemeen');
 const selectedOutputFormat = ref('Samenvatting');
 const appVersion = ref('1.0.2');
+const isLoading = ref(false);
 
 const dictionaryEntries = ref([]);
 const newOriginalTerm = ref('');
@@ -93,6 +94,7 @@ async function deleteDictionaryEntry(id) {
 }
 
 async function simplifyText() {
+  isLoading.value = true;
   try {
     const response = await axios.post('/api/simplify', {
       text: inputText.value,
@@ -104,6 +106,8 @@ async function simplifyText() {
   } catch (error) {
     console.error('Fout bij vereenvoudigen tekst:', error);
     simplifiedText.value = `Niet gelukt om tekst te vereenvoudigen: ${error.response.data.error}`;
+  } finally {
+    isLoading.value = false;
   }
 }
 
@@ -167,7 +171,8 @@ onMounted(() => {
 
     <textarea v-model="inputText" placeholder="Voer hier complexe Nederlandse tekst in..." rows="10" cols="50"></textarea>
     <br>
-    <button @click="simplifyText">Vereenvoudig Tekst</button>
+    <button @click="simplifyText" :disabled="isLoading">Vereenvoudig Tekst</button>
+    <div v-if="isLoading" class="loading-indicator">Aan het vereenvoudigen...</div>
 
     <h2>Vereenvoudigde Tekst:</h2>
     <div v-if="simplifiedText">

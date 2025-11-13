@@ -300,4 +300,18 @@ button:focus-visible {
   nav a.router-link-exact-active {
     color: var(--vooruit-red); /* Active link in Vooruit Red */
   }
+
+.loading-indicator {
+  text-align: center;
+  margin-top: 1rem;
+  font-weight: 600;
+  color: var(--vooruit-red); /* Use the brand color for visibility */
+  animation: pulse 1.5s infinite ease-in-out; /* Simple pulsing animation */
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
 }
