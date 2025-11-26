@@ -199,19 +199,113 @@ app.use('/api/simplify', simplifyRouter);
 // This allows seeding the database via API call after deployment
 app.post('/api/admin/seed', async (req, res) => {
   try {
-    // Import and run seed function
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
+    // Import seed function directly
+    const seedFunction = await import('./scripts/seed.js');
+    // The seed script runs on import, so we just need to wait a bit
+    // Actually, let's import the models and run seed logic directly
+    const LVL = (await import('./models/LVL.js')).default;
+    const User = (await import('./models/User.js')).default;
+    const TargetAudience = (await import('./models/TargetAudience.js')).default;
+    const OutputFormat = (await import('./models/OutputFormat.js')).default;
+    const Language = (await import('./models/Language.js')).default;
+    const bcrypt = (await import('bcrypt')).default;
+
+    const results = [];
+
+    // Seed LVLs
+    const lvls = [
+      { name: 'Local', code: 'LOCAL', description: 'Gemeentelijk niveau' },
+      { name: 'Provincial', code: 'PROVINCIAL', description: 'Provinciaal niveau' },
+      { name: 'Regional', code: 'REGIONAL', description: 'Gewestelijk niveau (Vlaams Gewest, Brussels Gewest, Waals Gewest)' },
+      { name: 'Community', code: 'COMMUNITY', description: 'Gemeenschapsniveau (Vlaamse Gemeenschap, Franse Gemeenschap, Duitstalige Gemeenschap)' },
+      { name: 'Federal', code: 'FEDERAL', description: 'Federaal niveau' },
+    ];
+
+    for (const lvlData of lvls) {
+      const existing = await LVL.findOne({ code: lvlData.code });
+      if (!existing) {
+        await LVL.create(lvlData);
+        results.push(`Created LVL: ${lvlData.name}`);
+      } else {
+        results.push(`LVL already exists: ${lvlData.name}`);
+      }
+    }
+
+    // Seed Target Audiences
+    const targetAudiences = [
+      { name: 'Algemeen', description: 'For a broad audience, like "your uncle at the family party."' },
+      { name: 'Jongeren', description: 'For a 20-year-old audience, using modern, engaging, and slightly informal language' },
+      { name: 'Ouderen', description: 'For an elderly audience, using formal, respectful, and very clear language' },
+    ];
+
+    for (const taData of targetAudiences) {
+      const existing = await TargetAudience.findOne({ name: taData.name });
+      if (!existing) {
+        await TargetAudience.create(taData);
+        results.push(`Created Target Audience: ${taData.name}`);
+      } else {
+        results.push(`Target Audience already exists: ${taData.name}`);
+      }
+    }
+
+    // Seed Output Formats
+    const outputFormats = [
+      { name: 'Samenvatting', description: 'Provide a concise summary' },
+      { name: 'Korte versie (Instagram-achtig)', description: 'Very short, engaging, and attention-grabbing text suitable for Instagram' },
+      { name: 'Medium versie (LinkedIn-achtig)', description: 'Professional, informative, and engaging medium-length text suitable for LinkedIn' },
+      { name: 'Opsommingstekens', description: 'Output in bullet points' },
+    ];
+
+    for (const ofData of outputFormats) {
+      const existing = await OutputFormat.findOne({ name: ofData.name });
+      if (!existing) {
+        await OutputFormat.create(ofData);
+        results.push(`Created Output Format: ${ofData.name}`);
+      } else {
+        results.push(`Output Format already exists: ${ofData.name}`);
+      }
+    }
+
+    // Seed Languages
+    const languages = [
+      { name: 'Dutch', code: 'DUTCH', description: 'Nederlands' },
+      { name: 'English', code: 'ENGLISH', description: 'Engels' },
+      { name: 'French', code: 'FRENCH', description: 'Frans' },
+    ];
+
+    for (const langData of languages) {
+      const existing = await Language.findOne({ code: langData.code });
+      if (!existing) {
+        await Language.create(langData);
+        results.push(`Created Language: ${langData.name}`);
+      } else {
+        results.push(`Language already exists: ${langData.name}`);
+      }
+    }
+
+    // Create SUPER_ADMIN
+    const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@mensentaalmachine.be';
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+    const existingAdmin = await User.findOne({ email: adminEmail });
     
-    // Run seed script
-    const { stdout, stderr } = await execAsync('node backend/scripts/seed.js');
-    
+    if (!existingAdmin) {
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+      await User.create({
+        email: adminEmail,
+        name: 'Super Admin',
+        passwordHash,
+        role: 'SUPER_ADMIN',
+        teams: [],
+      });
+      results.push(`Created SUPER_ADMIN: ${adminEmail} (password: ${adminPassword})`);
+    } else {
+      results.push(`SUPER_ADMIN already exists: ${adminEmail}`);
+    }
+
     res.json({ 
       success: true, 
       message: 'Database seeded successfully',
-      output: stdout,
-      errors: stderr || null,
+      results,
     });
   } catch (error) {
     console.error('Seed error:', error);
@@ -219,6 +313,7 @@ app.post('/api/admin/seed', async (req, res) => {
       success: false, 
       error: 'Failed to seed database',
       details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 });
