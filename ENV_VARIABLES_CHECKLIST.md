@@ -19,6 +19,7 @@ EvenNode provides `APP_CONFIG` automatically, but you need:
 - **`MONGO_PASSWORD`** (Required)
   - Your MongoDB password
   - Used to construct the MongoDB connection string
+  - **For v2.0 app**: Set to `fcc88fe703403b6bc797e032f52200a2`
 
 **OR** if not using EvenNode's MongoDB:
 
@@ -52,9 +53,15 @@ Once deployed, test:
 2. Try simplifying a text
 3. Check EvenNode logs for any errors
 
+## v2.0 Database Configuration
+
+- **Database Name**: `fcc88fe703403b6bc797e032f52200a2`
+- **MONGO_PASSWORD**: `fcc88fe703403b6bc797e032f52200a2` (same as database name)
+
 ## Common Issues
 
 - **MongoDB connection fails**: Check `MONGO_PASSWORD` and `APP_CONFIG`
+  - For v2.0: Ensure `MONGO_PASSWORD` is set to `fcc88fe703403b6bc797e032f52200a2`
 - **OpenAI errors**: Verify `OPENAI_API_KEY` is correct
 - **CORS errors**: Update `ALLOW_ORIGINS` with your domain
 

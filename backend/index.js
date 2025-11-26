@@ -23,18 +23,20 @@ app.use(cors({
 }));
 
 // MongoDB Connection
+const MONGODB_DATABASE = 'fcc88fe703403b6bc797e032f52200a2'; // v2.0 database name
 let mongoUri;
 if (process.env.APP_CONFIG) {
   const config = JSON.parse(process.env.APP_CONFIG);
   const mongoPassword = process.env.MONGO_PASSWORD; // You need to set this in EvenNode environment variables
   if (config.mongo && mongoPassword) {
-    mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${config.mongo.hostString}`;
+    // Append database name to connection string
+    mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${config.mongo.hostString}/${MONGODB_DATABASE}`;
   } else {
     console.error('EvenNode APP_CONFIG or MONGO_PASSWORD not properly configured. Falling back to localhost.');
-    mongoUri = 'mongodb://localhost:27017/mensentaalmachine'; // Fallback for local development
+    mongoUri = `mongodb://localhost:27017/${MONGODB_DATABASE}`; // Fallback for local development
   }
 } else {
-  mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mensentaalmachine'; // Fallback for local development or other deployments
+  mongoUri = process.env.MONGODB_URI || `mongodb://localhost:27017/${MONGODB_DATABASE}`; // Fallback for local development or other deployments
 }
 
 console.log('Attempting to connect to MongoDB with URI:', mongoUri);
