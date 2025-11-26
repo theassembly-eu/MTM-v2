@@ -195,6 +195,34 @@ import simplifyRouter from './routes/simplify.js';
 app.use('/api/request-logs', requestLogsRouter);
 app.use('/api/simplify', simplifyRouter);
 
+// Temporary seed endpoint (REMOVE AFTER FIRST USE!)
+// This allows seeding the database via API call after deployment
+app.post('/api/admin/seed', async (req, res) => {
+  try {
+    // Import and run seed function
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    
+    // Run seed script
+    const { stdout, stderr } = await execAsync('node backend/scripts/seed.js');
+    
+    res.json({ 
+      success: true, 
+      message: 'Database seeded successfully',
+      output: stdout,
+      errors: stderr || null,
+    });
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to seed database',
+      details: error.message,
+    });
+  }
+});
+
 // Old routes removed - now handled by route modules above
 
 // Saved Results CRUD routes
