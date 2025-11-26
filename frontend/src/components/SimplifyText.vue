@@ -968,8 +968,23 @@ onMounted(async () => {
 }
 
 .context-summary strong {
-  color: #000;
-  margin-right: 0.5rem;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  margin-right: var(--spacing-2);
+}
+
+@media (max-width: 768px) {
+  .simplify-page {
+    padding: var(--spacing-4) var(--spacing-3);
+  }
+  
+  .simplify-form {
+    padding: var(--spacing-6);
+  }
+  
+  .page-header h1 {
+    font-size: var(--font-size-3xl);
+  }
 }
 </style>
 
