@@ -1,0 +1,177 @@
+import express from 'express';
+import User from '../models/User.js';
+import { authenticate } from '../middleware/auth.js';
+import { requireRole, requireRoleOrHigher } from '../middleware/roles.js';
+import { hashPassword, validatePassword } from '../utils/password.js';
+
+const router = express.Router();
+
+// GET /api/users - Get users (filtered by role)
+router.get('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) => {
+  try {
+    let users;
+
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN sees all users
+      users = await User.find().select('-passwordHash').populate('teams', 'name');
+    } else {
+      // ADMIN sees users from their teams
+      users = await User.find({ teams: { $in: req.user.teams } })
+        .select('-passwordHash')
+        .populate('teams', 'name');
+    }
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users', code: 'FETCH_ERROR' });
+  }
+});
+
+// GET /api/users/:id - Get single user
+router.get('/:id', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-passwordHash').populate('teams', 'name');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check permissions (ADMIN can only see users from their teams)
+    if (req.user.role === 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      const userTeamIds = user.teams.map(team => team._id.toString());
+      const hasCommonTeam = req.user.teams.some(teamId => userTeamIds.includes(teamId));
+      if (!hasCommonTeam) {
+        return res.status(403).json({ error: 'Not authorized to view this user' });
+      }
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user', code: 'FETCH_ERROR' });
+  }
+});
+
+// POST /api/users - Create user (SUPER_ADMIN/ADMIN)
+router.post('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) => {
+  try {
+    const { email, name, password, role, teams } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ error: passwordValidation.message });
+    }
+
+    // Validate role
+    const validRoles = ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER', 'TEAM_MEMBER'];
+    const userRole = role || 'TEAM_MEMBER';
+    if (!validRoles.includes(userRole)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // ADMIN cannot create SUPER_ADMIN
+    if (req.user.role === 'ADMIN' && userRole === 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'ADMIN cannot create SUPER_ADMIN users' });
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(password);
+
+    const user = await User.create({
+      email: email.toLowerCase(),
+      name: name || '',
+      passwordHash,
+      role: userRole,
+      teams: teams || [],
+    });
+
+    const userResponse = await User.findById(user._id).select('-passwordHash').populate('teams', 'name');
+    res.status(201).json(userResponse);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user', code: 'CREATE_ERROR' });
+  }
+});
+
+// PUT /api/users/:id - Update user
+router.put('/:id', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) => {
+  try {
+    const { name, password, role, teams } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'ADMIN') {
+      const userTeamIds = user.teams.map(id => id.toString());
+      const hasCommonTeam = req.user.teams.some(teamId => userTeamIds.includes(teamId));
+      if (!hasCommonTeam) {
+        return res.status(403).json({ error: 'Not authorized to update this user' });
+      }
+      // ADMIN cannot change role to SUPER_ADMIN
+      if (role === 'SUPER_ADMIN') {
+        return res.status(403).json({ error: 'ADMIN cannot set role to SUPER_ADMIN' });
+      }
+    }
+
+    // Only SUPER_ADMIN can update SUPER_ADMIN users
+    if (user.role === 'SUPER_ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Only SUPER_ADMIN can update SUPER_ADMIN users' });
+    }
+
+    if (name !== undefined) user.name = name;
+    if (role !== undefined) user.role = role;
+    if (teams !== undefined) user.teams = teams;
+
+    if (password) {
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ error: passwordValidation.message });
+      }
+      user.passwordHash = await hashPassword(password);
+    }
+
+    await user.save();
+
+    const userResponse = await User.findById(user._id).select('-passwordHash').populate('teams', 'name');
+    res.json(userResponse);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user', code: 'UPDATE_ERROR' });
+  }
+});
+
+// DELETE /api/users/:id - Delete user (SUPER_ADMIN only)
+router.delete('/:id', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent deleting yourself
+    if (user._id.toString() === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user', code: 'DELETE_ERROR' });
+  }
+});
+
+export default router;
+

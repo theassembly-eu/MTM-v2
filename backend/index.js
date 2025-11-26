@@ -4,8 +4,12 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import OpenAI from 'openai';
-import DictionaryEntry from './models/DictionaryEntry.js'; // Import the new model
-import SavedResult from './models/SavedResult.js'; // Import the new model
+import DictionaryEntry from './models/DictionaryEntry.js';
+import SavedResult from './models/SavedResult.js';
+import User from './models/User.js';
+import { signToken } from './utils/jwt.js';
+import { comparePassword, validatePassword } from './utils/password.js';
+import { authenticate } from './middleware/auth.js';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -113,135 +117,85 @@ app.get('/api/hello', (req, res) => {
   res.json({ message: 'Hello from backend!' });
 });
 
-// Dictionary CRUD routes
-app.post('/api/dictionary', async (req, res) => {
+// Authentication routes
+app.post('/api/auth/login', async (req, res) => {
   try {
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
-      return res.status(503).json({ message: 'Database connection not available. Please try again.' });
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const newEntry = new DictionaryEntry(req.body);
-    await newEntry.save();
-    res.status(201).json(newEntry);
-  } catch (error) {
-    console.error('Error creating dictionary entry:', error);
-    res.status(400).json({ message: error.message });
-  }
-});
-
-app.get('/api/dictionary', async (req, res) => {
-  try {
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
-      return res.status(503).json({ message: 'Database connection not available. Please try again.' });
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() }).populate('teams');
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const entries = await DictionaryEntry.find();
-    res.json(entries);
-  } catch (error) {
-    console.error('Error fetching dictionary:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-app.put('/api/dictionary/:id', async (req, res) => {
-  try {
-    const updatedEntry = await DictionaryEntry.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updatedEntry);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-app.delete('/api/dictionary/:id', async (req, res) => {
-  try {
-    await DictionaryEntry.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Entry deleted' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-app.post('/api/simplify', async (req, res) => {
-  const { text, language = 'Dutch', targetAudience = 'Algemeen', outputFormat = 'Samenvatting' } = req.body; // Default to Dutch, Algemeen, and Samenvatting
-
-  if (!text) {
-    return res.status(400).json({ error: 'Text is required for simplification.' });
-  }
-
-  let audienceInstruction = '';
-  switch (targetAudience) {
-    case 'Algemeen':
-      audienceInstruction = 'for a broad audience, like "your uncle at the family party."';
-      break;
-    case 'Jongeren':
-      audienceInstruction = 'for a 20-year-old audience, using modern, engaging, and slightly informal language, including relevant slang or expressions where appropriate, but maintaining clarity.';
-      break;
-    case 'Ouderen':
-      audienceInstruction = 'for an elderly audience, using formal, respectful, and very clear language, avoiding jargon and complex sentence structures.';
-      break;
-  }
-
-  let formatInstruction = '';
-  let imageSuggestion = '';
-  let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
-
-  if (outputFormat === 'Opsommingstekens') {
-    listAvoidance = ''; // Allow bullet points if requested
-  }
-
-  // Fetch dictionary entries
-  let dictionaryTerms = '';
-  try {
-    const entries = await DictionaryEntry.find();
-    if (entries.length > 0) {
-      dictionaryTerms = '\n\nUse the following dictionary for simplification:';
-      entries.forEach(entry => {
-        dictionaryTerms += `\n- ${entry.originalTerm}: ${entry.simplifiedTerm}`;
-      });
+    // Verify password
+    const isPasswordValid = await comparePassword(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
-  } catch (error) {
-    console.error('Error fetching dictionary entries:', error);
-    // Continue without dictionary if there's an error
-  }
 
-  switch (outputFormat) {
-    case 'Samenvatting':
-      formatInstruction = 'Provide a concise summary.';
-      break;
-    case 'Korte versie (Instagram-achtig)':
-      formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
-      imageSuggestion = '\nSuggest a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian.';
-      break;
-    case 'Medium versie (LinkedIn-achtig)':
-      formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
-      break;
-    case 'Opsommingstekens':
-      formatInstruction = 'Provide the output in bullet points.';
-      break;
-  }
-
-  try {
-    const prompt = `You are a helpful seasoned professional in marketing with years of experience that simplifies complex ${language} political texts ${audienceInstruction} into clear, active, empathetic, and non-condescending language. You pay a lot of attention to Solidarity & social justice, Equal opportunity:, Protecting purchasing power and fair taxation, Social-democratic economy. You are newer condescending, very approachable and direct. Your tone is tailored on the Belgian audience.\n    Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone. ABSOLUTELY AVOID technical terms; if a technical term is unavoidable, rephrase it in simple language.\n    ${listAvoidance}\n\n    Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n    ---\n    Emotional Core Message: Start with a strong, emotional core message about people.\n    ---\n    Problem Statement: Name the problem briefly and clearly.\n    ---\n    Concluding Message: Conclude with a clear, impactful message.\n    ---\n    ${formatInstruction}\n    ${dictionaryTerms}\n\n    Please simplify the following ${language} text and respond in ${language}. Ensure the tone is strongly connotated and impactful. ${imageSuggestion}\n\n    "${text}"`;
-
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 500,
+    // Generate JWT token
+    const token = signToken({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      teams: user.teams.map(team => team._id.toString()),
     });
 
-    const simplifiedText = completion.choices[0].message.content;
-    res.json({ simplifiedText });
-
+    // Return user data and token
+    res.json({
+      token,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        teams: user.teams.map(team => ({
+          id: team._id.toString(),
+          name: team.name,
+        })),
+      },
+    });
   } catch (error) {
-    console.error('Error simplifying text:', error);
-    res.status(500).json({ error: 'Failed to simplify text.' });
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed', code: 'LOGIN_ERROR' });
   }
 });
+
+// Protected test route
+app.get('/api/auth/me', authenticate, (req, res) => {
+  res.json({
+    user: req.user,
+  });
+});
+
+// Import and register route modules
+import lvlsRouter from './routes/lvls.js';
+import teamsRouter from './routes/teams.js';
+import projectsRouter from './routes/projects.js';
+import referencesRouter from './routes/references.js';
+import usersRouter from './routes/users.js';
+import configRouter from './routes/config.js';
+import dictionaryRouter from './routes/dictionary.js';
+
+app.use('/api/lvls', lvlsRouter);
+app.use('/api/teams', teamsRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api', referencesRouter); // References use /api/projects/:id/references and /api/references/:id
+app.use('/api/users', usersRouter);
+app.use('/api', configRouter); // Config routes use /api/target-audiences, /api/output-formats, /api/languages
+app.use('/api', dictionaryRouter); // Dictionary routes use /api/projects/:id/dictionary and /api/dictionary/:id
+import requestLogsRouter from './routes/requestLogs.js';
+import simplifyRouter from './routes/simplify.js';
+
+app.use('/api/request-logs', requestLogsRouter);
+app.use('/api/simplify', simplifyRouter);
+
+// Old routes removed - now handled by route modules above
 
 // Saved Results CRUD routes
 app.post('/api/saved-results', async (req, res) => {

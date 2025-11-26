@@ -1,0 +1,209 @@
+import express from 'express';
+import Project from '../models/Project.js';
+import Team from '../models/Team.js';
+import Reference from '../models/Reference.js';
+import { authenticate } from '../middleware/auth.js';
+import { requireRoleOrHigher, requireTeamMembership } from '../middleware/roles.js';
+
+const router = express.Router();
+
+// GET /api/projects?teamId=... - Get projects (filtered by permissions)
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const { teamId } = req.query;
+    let query = {};
+
+    if (teamId) {
+      query.team = teamId;
+      
+      // Check if user has access to this team
+      if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+        if (!req.user.teams.includes(teamId)) {
+          return res.status(403).json({ error: 'Not authorized to view projects for this team' });
+        }
+      }
+    } else {
+      // If no teamId, filter by user's teams (unless SUPER_ADMIN/ADMIN)
+      if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+        query.team = { $in: req.user.teams };
+      }
+    }
+
+    const projects = await Project.find(query)
+      .populate('team', 'name')
+      .populate('lvls', 'name code')
+      .sort({ createdAt: -1 });
+
+    res.json(projects);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: 'Failed to fetch projects', code: 'FETCH_ERROR' });
+  }
+});
+
+// GET /api/projects/:id - Get single project
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .populate('team', 'name members')
+      .populate('lvls', 'name code');
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check permissions
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      const teamId = project.team._id.toString();
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to view this project' });
+      }
+    }
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ error: 'Failed to fetch project', code: 'FETCH_ERROR' });
+  }
+});
+
+// POST /api/projects - Create project
+router.post('/', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
+  try {
+    const { name, team, lvls, description } = req.body;
+
+    if (!name || !team || !lvls || !Array.isArray(lvls) || lvls.length === 0) {
+      return res.status(400).json({ error: 'Name, team, and at least one LVL are required' });
+    }
+
+    // Check team exists and user has access
+    const teamDoc = await Team.findById(team);
+    if (!teamDoc) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    // Check permissions
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      if (!req.user.teams.includes(team)) {
+        return res.status(403).json({ error: 'Not authorized to create projects for this team' });
+      }
+    }
+
+    // Validate LVLs are subset of team's LVLs
+    const teamLvlIds = teamDoc.lvls.map(id => id.toString());
+    const projectLvlIds = lvls.map(id => id.toString());
+    const isValidSubset = projectLvlIds.every(lvlId => teamLvlIds.includes(lvlId));
+
+    if (!isValidSubset) {
+      return res.status(400).json({ 
+        error: 'Project LVLs must be a subset of team LVLs',
+        teamLvls: teamLvlIds,
+        projectLvls: projectLvlIds,
+      });
+    }
+
+    const project = await Project.create({
+      name,
+      team,
+      lvls,
+      description: description || '',
+    });
+
+    const populatedProject = await Project.findById(project._id)
+      .populate('team', 'name')
+      .populate('lvls', 'name code');
+
+    res.status(201).json(populatedProject);
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: 'Failed to create project', code: 'CREATE_ERROR' });
+  }
+});
+
+// PUT /api/projects/:id - Update project
+router.put('/:id', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
+  try {
+    const { name, lvls, description } = req.body;
+
+    const project = await Project.findById(req.params.id).populate('team');
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check permissions
+    const teamId = project.team._id.toString();
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to update this project' });
+      }
+    }
+
+    // If LVLs are being updated, validate subset
+    if (lvls && Array.isArray(lvls)) {
+      const team = await Team.findById(teamId);
+      const teamLvlIds = team.lvls.map(id => id.toString());
+      const projectLvlIds = lvls.map(id => id.toString());
+      const isValidSubset = projectLvlIds.every(lvlId => teamLvlIds.includes(lvlId));
+
+      if (!isValidSubset) {
+        return res.status(400).json({ 
+          error: 'Project LVLs must be a subset of team LVLs',
+          teamLvls: teamLvlIds,
+          projectLvls: projectLvlIds,
+        });
+      }
+      project.lvls = lvls;
+    }
+
+    if (name) project.name = name;
+    if (description !== undefined) project.description = description;
+
+    await project.save();
+
+    const populatedProject = await Project.findById(project._id)
+      .populate('team', 'name')
+      .populate('lvls', 'name code');
+
+    res.json(populatedProject);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: 'Failed to update project', code: 'UPDATE_ERROR' });
+  }
+});
+
+// DELETE /api/projects/:id - Delete project
+router.delete('/:id', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id).populate('team');
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check permissions
+    const teamId = project.team._id.toString();
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to delete this project' });
+      }
+    }
+
+    // Check if project has references
+    const referenceCount = await Reference.countDocuments({ project: req.params.id });
+    if (referenceCount > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete project with existing references', 
+        referenceCount 
+      });
+    }
+
+    await Project.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Project deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: 'Failed to delete project', code: 'DELETE_ERROR' });
+  }
+});
+
+export default router;
+
