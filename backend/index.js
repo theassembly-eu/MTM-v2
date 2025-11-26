@@ -41,9 +41,38 @@ if (process.env.APP_CONFIG) {
 
 console.log('Attempting to connect to MongoDB with URI:', mongoUri);
 console.log('MongoDB URI:', mongoUri);
-mongoose.connect(mongoUri)
-  .then(() => console.log('MongoDB connected successfully.'))
-  .catch(err => console.error('MongoDB connection error:', err.message, err));
+
+// MongoDB connection options
+const mongooseOptions = {
+  serverSelectionTimeoutMS: 30000, // 30 seconds
+  socketTimeoutMS: 45000, // 45 seconds
+  connectTimeoutMS: 30000, // 30 seconds
+  bufferCommands: true,
+  bufferMaxEntries: 0, // Disable mongoose buffering
+};
+
+mongoose.connect(mongoUri, mongooseOptions)
+  .then(() => {
+    console.log('MongoDB connected successfully.');
+    console.log('Database:', MONGODB_DATABASE);
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err.message);
+    console.error('Full error:', err);
+  });
+
+// Handle connection events
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('MongoDB reconnected');
+});
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -60,19 +89,33 @@ app.get('/api/hello', (req, res) => {
 // Dictionary CRUD routes
 app.post('/api/dictionary', async (req, res) => {
   try {
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
+      return res.status(503).json({ message: 'Database connection not available. Please try again.' });
+    }
+
     const newEntry = new DictionaryEntry(req.body);
     await newEntry.save();
     res.status(201).json(newEntry);
   } catch (error) {
+    console.error('Error creating dictionary entry:', error);
     res.status(400).json({ message: error.message });
   }
 });
 
 app.get('/api/dictionary', async (req, res) => {
   try {
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
+      return res.status(503).json({ message: 'Database connection not available. Please try again.' });
+    }
+
     const entries = await DictionaryEntry.find();
     res.json(entries);
   } catch (error) {
+    console.error('Error fetching dictionary:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -176,17 +219,30 @@ app.post('/api/simplify', async (req, res) => {
 // Saved Results CRUD routes
 app.post('/api/saved-results', async (req, res) => {
   try {
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
+      return res.status(503).json({ message: 'Database connection not available. Please try again.' });
+    }
+
     const { originalText, simplifiedText, targetAudience, outputFormat } = req.body;
     const newSavedResult = new SavedResult({ originalText, simplifiedText, targetAudience, outputFormat });
     await newSavedResult.save();
     res.status(201).json(newSavedResult);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error saving result:', error);
+    res.status(400).json({ message: error.message || 'Failed to save result' });
   }
 });
 
 app.get('/api/saved-results', async (req, res) => {
   try {
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. ReadyState:', mongoose.connection.readyState);
+      return res.status(503).json({ message: 'Database connection not available. Please try again.' });
+    }
+
     const { search, targetAudience, outputFormat } = req.query;
     let query = {};
     if (search) {
@@ -204,6 +260,7 @@ app.get('/api/saved-results', async (req, res) => {
     const savedResults = await SavedResult.find(query).sort({ createdAt: -1 });
     res.json(savedResults);
   } catch (error) {
+    console.error('Error fetching saved results:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -222,6 +279,23 @@ const frontendPath = path.join(__dirname, '../dist'); // dist is in the project 
 app.use(history({ index: '/index.html' }));
 app.use(express.static(frontendPath));
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend running on http://0.0.0.0:${PORT}`);
+// Start server after MongoDB connection is established
+mongoose.connection.once('open', () => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend running on http://0.0.0.0:${PORT}`);
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    console.log('MongoDB database:', mongoose.connection.db?.databaseName || MONGODB_DATABASE);
+  });
 });
+
+// Fallback: Start server after 5 seconds even if MongoDB isn't connected yet
+// This allows the app to start and show connection errors in API responses
+setTimeout(() => {
+  if (!mongoose.connection.readyState) {
+    console.warn('Starting server despite MongoDB connection not being ready');
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Backend running on http://0.0.0.0:${PORT}`);
+      console.warn('WARNING: MongoDB connection not established');
+    });
+  }
+}, 5000);
