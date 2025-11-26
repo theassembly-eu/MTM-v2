@@ -19,7 +19,7 @@
           :disabled="loading || loadingTeams"
         >
           <option value="">Selecteer een team</option>
-          <option v-for="team in userTeams" :key="team.id" :value="team.id">
+          <option v-for="team in availableTeams" :key="team.id" :value="team.id">
             {{ team.name }}
           </option>
         </select>
@@ -300,6 +300,21 @@ const simplifiedText = ref('');
 const resultMeta = ref(null);
 
 // Computed
+const availableTeams = computed(() => {
+  // If user is SUPER_ADMIN or ADMIN, show all teams
+  if (user.value?.role === 'SUPER_ADMIN' || user.value?.role === 'ADMIN') {
+    return teams.value;
+  }
+  
+  // Otherwise, filter teams by user's teams
+  if (!user.value || !user.value.teams || user.value.teams.length === 0) {
+    return [];
+  }
+  
+  const userTeamIds = user.value.teams.map(t => String(t.id || t));
+  return teams.value.filter(team => userTeamIds.includes(String(team.id)));
+});
+
 const availableProjects = computed(() => {
   if (!selectedTeamId.value) return [];
   return projects.value.filter(p => p.team?.id === selectedTeamId.value || p.team === selectedTeamId.value);
@@ -638,8 +653,15 @@ onMounted(async () => {
   
   // If not authenticated, try to check auth first
   if (!isAuthenticated.value) {
-    await checkAuth();
+    const authResult = await checkAuth();
+    if (!authResult) {
+      console.error('Authentication failed, redirecting to login');
+      return;
+    }
   }
+  
+  // Wait a bit to ensure user data is fully loaded
+  await new Promise(resolve => setTimeout(resolve, 100));
   
   // Now fetch data
   await Promise.all([
@@ -649,6 +671,12 @@ onMounted(async () => {
     fetchOutputFormats(),
     fetchLanguages(),
   ]);
+  
+  console.log('Data loaded:', {
+    teamsCount: teams.value.length,
+    userTeams: user.value?.teams,
+    userRole: user.value?.role,
+  });
 });
 </script>
 
