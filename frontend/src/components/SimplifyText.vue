@@ -1,11 +1,9 @@
 <template>
   <div class="simplify-page">
-    <img 
-      src="https://assets.nationbuilder.com/vooruit/sites/3/meta_images/original/Vooruit_thumbnail.jpg?1619535283" 
-      alt="Vooruit Logo" 
-      class="logo"
-    />
-    <h1>MensentaalMachine v{{ appVersion }}</h1>
+    <div class="page-header">
+      <h1>Tekst Vereenvoudigen</h1>
+      <p class="page-subtitle">Vereenvoudig complexe teksten met contextuele AI-ondersteuning</p>
+    </div>
 
     <form @submit.prevent="handleSimplify" class="simplify-form">
       <!-- Team Selection -->
@@ -684,103 +682,113 @@ onMounted(async () => {
 .simplify-page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--spacing-8) var(--spacing-4);
 }
 
-.logo {
-  max-width: 150px;
-  margin-bottom: 1rem;
+.page-header {
+  margin-bottom: var(--spacing-8);
+  text-align: center;
 }
 
-h1 {
-  font-size: 2.5em;
-  margin-bottom: 2rem;
-  color: #000;
+.page-header h1 {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
+  letter-spacing: -0.02em;
 }
 
-h2 {
-  font-size: 1.8em;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  color: #000;
-}
-
-h3 {
-  font-size: 1.3em;
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  color: #333;
+.page-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin: 0;
 }
 
 .simplify-form {
-  text-align: left;
-  background: #f8f8f8;
-  padding: 2rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
+  box-shadow: var(--shadow-sm);
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-6);
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
 }
 
 .form-group label {
   display: block;
-  font-weight: 600;
-  color: #000;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
 }
 
 .form-group select,
 .form-group input[type="text"],
 .form-group textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 1em;
-  box-sizing: border-box;
-  background-color: #fdfdfd;
-  color: #333;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
 }
 
 .form-group select:focus,
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #FF0000;
+  border-color: var(--color-border-focus);
   box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
 }
 
 .form-group select:disabled,
 .form-group input:disabled,
 .form-group textarea:disabled {
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-tertiary);
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .form-group textarea {
-  min-height: 150px;
+  min-height: 180px;
   resize: vertical;
-  font-family: inherit;
+  font-family: var(--font-family);
+  line-height: var(--line-height-relaxed);
 }
 
 .char-count {
-  font-size: 0.9em;
-  color: #666;
-  margin-top: 0.5rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: var(--spacing-2);
+  text-align: right;
 }
 
 .optional-section {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 2px solid #ddd;
+  margin-top: var(--spacing-8);
+  padding-top: var(--spacing-8);
+  border-top: 1px solid var(--color-border);
+}
+
+.optional-section h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-6);
 }
 
 .keyword-input {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
 }
 
 .keyword-input input {
@@ -788,131 +796,122 @@ h3 {
 }
 
 .keyword-input button {
-  padding: 12px 20px;
-  background: #FF0000;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.keyword-input button:hover:not(:disabled) {
-  background: #cc0000;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
 }
 
 .keyword-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-8);
 }
 
 .keyword-tag {
-  background: #e0e0e0;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
+  background: var(--color-bg-tertiary);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9em;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
 }
 
 .keyword-tag button {
   background: transparent;
   border: none;
-  color: #666;
+  color: var(--color-text-tertiary);
   cursor: pointer;
-  font-size: 1.2em;
+  font-size: var(--font-size-lg);
   line-height: 1;
   padding: 0;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-base);
 }
 
 .keyword-tag button:hover:not(:disabled) {
-  color: #FF0000;
+  color: var(--color-error);
+  background-color: var(--color-bg-secondary);
 }
 
 .references-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--spacing-2);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
 }
 
 .reference-checkbox {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-3);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-base);
+  font-size: var(--font-size-sm);
 }
 
 .reference-checkbox:hover {
-  background: #f0f0f0;
+  background: var(--color-bg-tertiary);
 }
 
 .reference-checkbox input[type="checkbox"] {
-  width: auto;
+  width: 18px;
+  height: 18px;
   margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary);
 }
 
 .submit-button {
   width: 100%;
-  padding: 14px 24px;
-  font-size: 1.2em;
-  font-weight: 600;
-  background-color: #FF0000;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  margin-top: 1rem;
-}
-
-.submit-button:hover:not(:disabled) {
-  background-color: #cc0000;
-  transform: translateY(-2px);
-}
-
-.submit-button:disabled {
-  background-color: #999;
-  cursor: not-allowed;
-  transform: none;
+  padding: var(--spacing-4) var(--spacing-6);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin-top: var(--spacing-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
 }
 
 .loading-indicator {
   text-align: center;
-  margin-top: 2rem;
-  padding: 2rem;
+  margin-top: var(--spacing-6);
+  padding: var(--spacing-6);
 }
 
-.spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #FF0000;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.loading-indicator p {
+  margin-top: var(--spacing-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .error-message {
-  background-color: #fee;
-  color: #c33;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #fcc;
+  background-color: #FEF2F2;
+  color: var(--color-error);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-6);
+  border: 1px solid #FECACA;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
 }
 
 .result-section {
