@@ -372,6 +372,7 @@ onMounted(() => {
   align-items: flex-start;
   margin-bottom: var(--spacing-4);
   gap: var(--spacing-4);
+  min-width: 0;
 }
 
 .reference-header h3 {
@@ -380,12 +381,15 @@ onMounted(() => {
   color: var(--color-text-primary);
   margin: 0;
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .reference-actions {
   display: flex;
   gap: var(--spacing-2);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .reference-info {

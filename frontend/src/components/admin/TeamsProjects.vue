@@ -462,17 +462,21 @@ h4 {
   align-items: flex-start;
   margin-bottom: var(--spacing-4);
   gap: var(--spacing-4);
+  min-width: 0;
 }
 
 .team-header h3 {
   margin: 0;
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .team-actions {
   display: flex;
   gap: var(--spacing-2);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .team-info {
@@ -513,10 +517,18 @@ h4 {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   transition: background-color var(--transition-base);
+  gap: var(--spacing-3);
+  min-width: 0;
 }
 
 .project-item:hover {
   background: var(--color-bg-tertiary);
+}
+
+.project-item > div:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .project-lvls {
@@ -529,6 +541,7 @@ h4 {
   display: flex;
   gap: var(--spacing-2);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .empty-state, .empty-state-small {

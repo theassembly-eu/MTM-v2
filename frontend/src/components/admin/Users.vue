@@ -302,10 +302,12 @@ onMounted(() => {
   align-items: flex-start;
   margin-bottom: var(--spacing-4);
   gap: var(--spacing-4);
+  min-width: 0;
 }
 
 .user-info {
   flex: 1;
+  min-width: 0;
 }
 
 .user-info h3 {
@@ -313,12 +315,14 @@ onMounted(() => {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-2) 0;
+  word-break: break-word;
 }
 
 .user-name {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   margin: var(--spacing-2) 0;
+  word-break: break-word;
 }
 
 .user-role {
@@ -338,6 +342,7 @@ onMounted(() => {
   display: flex;
   gap: var(--spacing-2);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .user-details {
