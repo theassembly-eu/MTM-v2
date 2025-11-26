@@ -1,26 +1,39 @@
 <template>
   <div class="history-page">
-    <h2>Geschiedenis</h2>
+    <div class="page-header">
+      <h1>Geschiedenis</h1>
+      <p class="page-subtitle">Bekijk alle vereenvoudigde teksten en hun context</p>
+    </div>
 
-    <div class="filters">
-      <input 
-        type="text" 
-        v-model="searchQuery" 
-        placeholder="Zoeken in tekst..." 
-        @input="debouncedFetch"
-      />
-      <select v-model="selectedProjectId" @change="fetchRequestLogs">
-        <option value="">Alle projecten</option>
-        <option v-for="project in projects" :key="project.id" :value="project.id">
-          {{ project.name }}
-        </option>
-      </select>
-      <select v-model="selectedTeamId" @change="onTeamChange">
-        <option value="">Alle teams</option>
-        <option v-for="team in teams" :key="team.id" :value="team.id">
-          {{ team.name }}
-        </option>
-      </select>
+    <div class="filters card">
+      <div class="filter-group">
+        <label for="search">Zoeken</label>
+        <input 
+          id="search"
+          type="text" 
+          v-model="searchQuery" 
+          placeholder="Zoeken in tekst..." 
+          @input="debouncedFetch"
+        />
+      </div>
+      <div class="filter-group">
+        <label for="team-filter">Team</label>
+        <select id="team-filter" v-model="selectedTeamId" @change="onTeamChange">
+          <option value="">Alle teams</option>
+          <option v-for="team in teams" :key="team.id" :value="team.id">
+            {{ team.name }}
+          </option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="project-filter">Project</label>
+        <select id="project-filter" v-model="selectedProjectId" @change="fetchRequestLogs">
+          <option value="">Alle projecten</option>
+          <option v-for="project in projects" :key="project.id" :value="project.id">
+            {{ project.name }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">Laden...</div>
@@ -250,123 +263,180 @@ watch(selectedProjectId, () => {
 
 <style scoped>
 .history-page {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--spacing-8) var(--spacing-4);
 }
 
-h2 {
+.page-header {
+  margin-bottom: var(--spacing-8);
   text-align: center;
-  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin: 0;
 }
 
 .filters {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-8);
+  padding: var(--spacing-6);
 }
 
-.loading, .error, .no-results {
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
+}
+
+.filter-group input,
+.filter-group select {
+  width: 100%;
+}
+
+.loading, .no-results {
   text-align: center;
-  padding: 1rem;
+  padding: var(--spacing-8);
+  color: var(--color-text-secondary);
 }
 
 .error {
-  color: red;
+  background-color: #FEF2F2;
+  color: var(--color-error);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-6);
+  border: 1px solid #FECACA;
+  text-align: center;
 }
 
 .results-list {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
 .result-item {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  padding: 1.5rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-6);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base);
+}
+
+.result-item:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .result-header {
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #ddd;
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .result-meta {
-  margin: 0.5rem 0;
-  font-size: 0.9em;
-  color: #666;
+  margin: var(--spacing-2) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
 }
 
 .result-body {
-  margin-top: 1rem;
+  margin-top: var(--spacing-4);
 }
 
 .text-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-6);
 }
 
 .text-section strong {
   display: block;
-  margin-bottom: 0.5rem;
-  color: #000;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
 }
 
 .text-section p,
 .text-section pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  background: #eee;
-  padding: 1rem;
-  border-radius: 4px;
+  background: var(--color-bg-secondary);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
   margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
 }
 
 .context-info {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: #f0f0f0;
-  border-radius: 4px;
-  font-size: 0.9em;
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
 }
 
 .context-info div {
-  margin: 0.5rem 0;
+  margin: var(--spacing-2) 0;
+  color: var(--color-text-secondary);
 }
 
 .pagination-info {
   text-align: center;
-  margin: 1rem 0;
-  color: #666;
-  font-size: 0.9em;
+  margin: var(--spacing-6) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: var(--spacing-4);
+  margin-top: var(--spacing-8);
 }
 
 .pagination-btn {
-  padding: 0.5rem 1rem;
-  background: #FF0000;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
-.pagination-btn:hover:not(:disabled) {
-  background: #cc0000;
-}
-
-.pagination-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+@media (max-width: 768px) {
+  .history-page {
+    padding: var(--spacing-4) var(--spacing-3);
+  }
+  
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  
+  .page-header h1 {
+    font-size: var(--font-size-3xl);
+  }
 }
 </style>
