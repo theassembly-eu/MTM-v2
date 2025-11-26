@@ -47,7 +47,7 @@ defineEmits(['edit', 'delete']);
 
 .items-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: var(--spacing-4);
 }
 
@@ -76,9 +76,9 @@ defineEmits(['edit', 'delete']);
 }
 
 .item-header > div:first-child {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  max-width: 100%;
 }
 
 .item-header h3 {
@@ -87,6 +87,7 @@ defineEmits(['edit', 'delete']);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-2) 0;
   word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .item-code {
@@ -114,6 +115,7 @@ defineEmits(['edit', 'delete']);
   gap: var(--spacing-2);
   flex-shrink: 0;
   flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .btn-edit, .btn-delete {
