@@ -63,11 +63,19 @@ export function useAuth() {
     }
 
     try {
+      // Ensure token is set in axios headers
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token.value}`;
+      
       const response = await axios.get('/api/auth/me');
       user.value = response.data.user;
+      
+      // Update localStorage with fresh user data
+      localStorage.setItem('mtm_user', JSON.stringify(user.value));
+      
       return true;
     } catch (err) {
       // Token invalid, clear auth
+      console.error('Auth check failed:', err);
       logout();
       return false;
     }

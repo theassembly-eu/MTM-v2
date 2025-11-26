@@ -631,8 +631,17 @@ watch(selectedProjectId, (newVal) => {
   }
 });
 
-// Initialize data
+// Initialize data - wait for auth to be ready
 onMounted(async () => {
+  // Wait for authentication to be ready
+  const { isAuthenticated, checkAuth } = useAuth();
+  
+  // If not authenticated, try to check auth first
+  if (!isAuthenticated.value) {
+    await checkAuth();
+  }
+  
+  // Now fetch data
   await Promise.all([
     fetchTeams(),
     fetchLvls(),
