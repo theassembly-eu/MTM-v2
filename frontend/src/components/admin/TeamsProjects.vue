@@ -52,7 +52,7 @@
             <div class="projects-header">
               <h4>Projecten</h4>
               <button 
-                @click="showCreateProjectModal(team)" 
+                @click="openCreateProjectModal(team)" 
                 class="btn-small"
                 :disabled="!canCreateProject"
               >
@@ -280,7 +280,7 @@ async function fetchData() {
   }
 }
 
-function showCreateProjectModal(team) {
+function openCreateProjectModal(team) {
   projectForm.value = {
     name: '',
     team: team.id,
