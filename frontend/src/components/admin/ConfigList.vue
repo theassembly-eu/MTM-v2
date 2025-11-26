@@ -42,77 +42,110 @@ defineEmits(['edit', 'delete']);
 
 <style scoped>
 .config-list {
-  margin-top: 1rem;
+  margin-top: var(--spacing-4);
 }
 
 .items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-4);
 }
 
 .item-card {
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1.5rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base);
+}
+
+.item-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .item-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: var(--spacing-4);
+}
+
+.item-header h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+  flex: 1;
 }
 
 .item-code {
-  color: #666;
-  font-size: 0.9em;
-  margin: 0.25rem 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  font-family: 'Monaco', 'Courier New', monospace;
+  margin: var(--spacing-2) 0;
+  background: var(--color-bg-tertiary);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-sm);
+  display: inline-block;
 }
 
 .item-description {
-  color: #666;
-  font-size: 0.9em;
-  margin: 0.5rem 0 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-2) 0 0 0;
+  line-height: var(--line-height-relaxed);
 }
 
 .item-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
 }
 
 .btn-edit, .btn-delete {
-  padding: 0.5rem 1rem;
+  padding: var(--spacing-2) var(--spacing-4);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
 }
 
 .btn-edit {
-  background: #4CAF50;
-  color: white;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .btn-edit:hover {
-  background: #45a049;
+  background: #059669;
 }
 
 .btn-delete {
-  background: #f44336;
-  color: white;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
 }
 
 .btn-delete:hover {
-  background: #da190b;
+  background: #DC2626;
 }
 
 .empty-state {
-  color: #666;
+  color: var(--color-text-tertiary);
   font-style: italic;
-  padding: 2rem;
+  padding: var(--spacing-8);
   text-align: center;
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  .items-list {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 

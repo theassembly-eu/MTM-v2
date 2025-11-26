@@ -1,7 +1,9 @@
 <template>
   <div class="admin-page">
-    <h1>Configuratie Beheer</h1>
-    <p class="subtitle">Beheer Doelgroepen, Output Formaten en Talen</p>
+    <div class="page-header">
+      <h1>Configuratie Beheer</h1>
+      <p class="page-subtitle">Beheer Doelgroepen, Output Formaten en Talen</p>
+    </div>
 
     <!-- Tabs -->
     <div class="tabs">
@@ -270,40 +272,84 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.subtitle {
-  color: #666;
-  margin-bottom: 2rem;
+.page-header {
+  margin-bottom: var(--spacing-8);
+}
+
+.page-header h1 {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin: 0;
 }
 
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid #ddd;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-8);
+  border-bottom: 2px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-button {
-  padding: 0.75rem 1.5rem;
+  padding: var(--spacing-3) var(--spacing-5);
   background: transparent;
   border: none;
   border-bottom: 3px solid transparent;
   cursor: pointer;
-  font-weight: 600;
-  color: #666;
-  transition: all 0.3s ease;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-base);
+  white-space: nowrap;
 }
 
 .tab-button:hover {
-  color: #000;
+  color: var(--color-text-primary);
 }
 
 .tab-button.active {
-  color: #FF0000;
-  border-bottom-color: #FF0000;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .config-section {
-  margin-top: 2rem;
+  margin-top: var(--spacing-6);
+}
+
+.admin-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--spacing-8) var(--spacing-4);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-6);
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.section-header h2 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
 }
 
 /* Reuse other styles from TeamsProjects */
