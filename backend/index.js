@@ -197,7 +197,16 @@ app.use('/api/simplify', simplifyRouter);
 
 // Temporary seed endpoint (REMOVE AFTER FIRST USE!)
 // This allows seeding the database via API call after deployment
+// Supports both GET and POST for easier access
+app.get('/api/admin/seed', async (req, res) => {
+  await handleSeed(req, res);
+});
+
 app.post('/api/admin/seed', async (req, res) => {
+  await handleSeed(req, res);
+});
+
+async function handleSeed(req, res) {
   try {
     // Import seed function directly
     const seedFunction = await import('./scripts/seed.js');
@@ -316,7 +325,7 @@ app.post('/api/admin/seed', async (req, res) => {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
-});
+}
 
 // Old routes removed - now handled by route modules above
 
