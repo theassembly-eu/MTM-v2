@@ -307,26 +307,43 @@ const availableProjects = computed(() => {
 
 const availableLvls = computed(() => {
   if (!selectedProjectId.value) return [];
-  const project = projects.value.find(p => p.id === selectedProjectId.value);
-  if (!project || !project.lvls || project.lvls.length === 0) {
+  const project = projects.value.find(p => String(p.id) === String(selectedProjectId.value));
+  if (!project) {
+    console.log('Project not found:', selectedProjectId.value);
+    return [];
+  }
+  
+  if (!project.lvls || !Array.isArray(project.lvls) || project.lvls.length === 0) {
     console.log('No LVLs found for project:', project);
     return [];
   }
   
   // Normalize project LVL IDs to strings for comparison
-  const projectLvlIds = project.lvls.map(pl => String(pl));
+  const projectLvlIds = project.lvls.map(pl => String(pl)).filter(Boolean);
+  
+  if (projectLvlIds.length === 0) {
+    console.log('No valid LVL IDs in project:', project);
+    return [];
+  }
   
   // Filter LVLs that match project's LVLs
   const filtered = lvls.value.filter(lvl => {
     const lvlId = String(lvl.id);
-    return projectLvlIds.includes(lvlId);
+    const matches = projectLvlIds.includes(lvlId);
+    if (!matches) {
+      console.log('LVL mismatch:', { lvlId, projectLvlIds, lvlName: lvl.name });
+    }
+    return matches;
   });
   
   console.log('Available LVLs for project:', {
     projectId: selectedProjectId.value,
+    projectName: project.name,
     projectLvlIds,
+    projectLvlCount: projectLvlIds.length,
     allLvlIds: lvls.value.map(l => String(l.id)),
-    filtered: filtered.map(l => l.name),
+    filtered: filtered.map(l => `${l.name} (${l.id})`),
+    filteredCount: filtered.length,
   });
   
   return filtered;
@@ -404,16 +421,26 @@ async function fetchProjects() {
   loadingProjects.value = true;
   try {
     const response = await axios.get(`/api/projects?teamId=${selectedTeamId.value}`);
-    projects.value = response.data.map(project => ({
-      id: project._id || project.id,
-      name: project.name,
-      team: project.team?._id || project.team || project.teamId,
-      // Normalize LVLs - they might be objects with _id/id or just strings
-      lvls: (project.lvls || []).map(lvl => {
-        if (typeof lvl === 'string') return lvl;
-        return lvl._id || lvl.id || lvl;
-      }),
-    }));
+    projects.value = response.data.map(project => {
+      // Normalize LVLs - handle both populated objects and ObjectIds
+      let normalizedLvls = [];
+      if (project.lvls && Array.isArray(project.lvls)) {
+        normalizedLvls = project.lvls.map(lvl => {
+          if (typeof lvl === 'string') return String(lvl);
+          if (lvl && typeof lvl === 'object') {
+            return String(lvl._id || lvl.id || lvl);
+          }
+          return String(lvl);
+        });
+      }
+      
+      return {
+        id: String(project._id || project.id),
+        name: project.name,
+        team: project.team?._id || project.team || project.teamId,
+        lvls: normalizedLvls,
+      };
+    });
     console.log('Fetched projects:', projects.value);
   } catch (err) {
     console.error('Error fetching projects:', err);
