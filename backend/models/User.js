@@ -30,8 +30,8 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index for email (already unique, but explicit index for performance)
-userSchema.index({ email: 1 });
+// Email already has unique: true which creates an index automatically
+// No need for explicit index definition
 
 const User = mongoose.model('User', userSchema);
 

@@ -19,8 +19,8 @@ const teamSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Indexes
-teamSchema.index({ name: 1 }, { unique: true });
+// Name already has unique: true which creates an index automatically
+// Only need index for members (for queries)
 teamSchema.index({ members: 1 });
 
 const Team = mongoose.model('Team', teamSchema);
