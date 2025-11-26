@@ -308,8 +308,28 @@ const availableProjects = computed(() => {
 const availableLvls = computed(() => {
   if (!selectedProjectId.value) return [];
   const project = projects.value.find(p => p.id === selectedProjectId.value);
-  if (!project || !project.lvls) return [];
-  return lvls.value.filter(lvl => project.lvls.some(pl => pl.id === lvl.id || pl === lvl.id));
+  if (!project || !project.lvls || project.lvls.length === 0) {
+    console.log('No LVLs found for project:', project);
+    return [];
+  }
+  
+  // Normalize project LVL IDs to strings for comparison
+  const projectLvlIds = project.lvls.map(pl => String(pl));
+  
+  // Filter LVLs that match project's LVLs
+  const filtered = lvls.value.filter(lvl => {
+    const lvlId = String(lvl.id);
+    return projectLvlIds.includes(lvlId);
+  });
+  
+  console.log('Available LVLs for project:', {
+    projectId: selectedProjectId.value,
+    projectLvlIds,
+    allLvlIds: lvls.value.map(l => String(l.id)),
+    filtered: filtered.map(l => l.name),
+  });
+  
+  return filtered;
 });
 
 const availableReferences = computed(() => {
@@ -388,8 +408,13 @@ async function fetchProjects() {
       id: project._id || project.id,
       name: project.name,
       team: project.team?._id || project.team || project.teamId,
-      lvls: project.lvls || [],
+      // Normalize LVLs - they might be objects with _id/id or just strings
+      lvls: (project.lvls || []).map(lvl => {
+        if (typeof lvl === 'string') return lvl;
+        return lvl._id || lvl.id || lvl;
+      }),
     }));
+    console.log('Fetched projects:', projects.value);
   } catch (err) {
     console.error('Error fetching projects:', err);
   } finally {
