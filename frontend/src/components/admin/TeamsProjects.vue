@@ -1,6 +1,9 @@
 <template>
   <div class="admin-page">
-    <h1>Teams & Projecten Beheer</h1>
+    <div class="page-header">
+      <h1>Teams & Projecten Beheer</h1>
+      <p class="page-subtitle">Beheer teams, projecten en hun communicatieniveaus</p>
+    </div>
 
     <div v-if="loading" class="loading">Laden...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
@@ -377,172 +380,225 @@ onMounted(() => {
 
 <style scoped>
 .admin-page {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--spacing-8) var(--spacing-4);
 }
 
-h1 {
-  font-size: 2.5em;
-  margin-bottom: 2rem;
-  color: #000;
+.page-header {
+  margin-bottom: var(--spacing-8);
+}
+
+.page-header h1 {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin: 0;
 }
 
 h2 {
-  font-size: 1.8em;
-  margin-bottom: 1rem;
-  color: #000;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-4);
 }
 
 h3 {
-  font-size: 1.5em;
-  margin-bottom: 1rem;
-  color: #333;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-4);
 }
 
 h4 {
-  font-size: 1.2em;
-  margin-bottom: 0.5rem;
-  color: #333;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-6);
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.teams-section {
+  margin-bottom: var(--spacing-10);
 }
 
 .teams-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: var(--spacing-6);
 }
 
 .team-card {
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1.5rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base);
+}
+
+.team-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .team-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-4);
+  gap: var(--spacing-4);
+}
+
+.team-header h3 {
+  margin: 0;
+  flex: 1;
 }
 
 .team-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
 }
 
 .team-info {
-  margin-bottom: 1rem;
-  color: #666;
+  margin-bottom: var(--spacing-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
 }
 
 .projects-section {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #ddd;
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
 }
 
 .projects-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--spacing-3);
 }
 
 .projects-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
 }
 
 .project-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: white;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-base);
+}
+
+.project-item:hover {
+  background: var(--color-bg-tertiary);
 }
 
 .project-lvls {
-  color: #666;
-  font-size: 0.9em;
-  margin-left: 0.5rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  margin-left: var(--spacing-2);
 }
 
 .project-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
 }
 
 .empty-state, .empty-state-small {
-  color: #666;
+  color: var(--color-text-tertiary);
   font-style: italic;
-  padding: 1rem;
+  padding: var(--spacing-8);
   text-align: center;
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .empty-state-small {
-  padding: 0.5rem;
-  font-size: 0.9em;
-}
-
-.btn-primary, .btn-edit, .btn-delete, .btn-small, .btn-edit-small, .btn-delete-small, .btn-cancel {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
+  padding: var(--spacing-4);
+  font-size: var(--font-size-sm);
 }
 
 .btn-primary {
-  background: #FF0000;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #cc0000;
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-edit, .btn-edit-small {
-  background: #4CAF50;
-  color: white;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .btn-edit:hover, .btn-edit-small:hover {
-  background: #45a049;
+  background: #059669;
 }
 
 .btn-delete, .btn-delete-small {
-  background: #f44336;
-  color: white;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .btn-delete:hover, .btn-delete-small:hover {
-  background: #da190b;
+  background: #DC2626;
 }
 
 .btn-small, .btn-edit-small, .btn-delete-small {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.85em;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
 }
 
 .btn-cancel {
-  background: #999;
-  color: white;
+  background: var(--color-text-tertiary);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .btn-cancel:hover {
-  background: #777;
+  background: #4B5563;
 }
 
 .modal-overlay {
@@ -552,100 +608,150 @@ h4 {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
+  padding: var(--spacing-4);
 }
 
 .modal {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-8);
   max-width: 600px;
-  width: 90%;
+  width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
 }
 
 .modal h3 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
   margin-top: 0;
+  margin-bottom: var(--spacing-6);
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-6);
 }
 
 .form-group label {
   display: block;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #000;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1em;
-  box-sizing: border-box;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-base);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
 }
 
 .form-group textarea {
   resize: vertical;
+  min-height: 100px;
 }
 
 .multi-select {
-  min-height: 100px;
+  min-height: 120px;
 }
 
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-height: 200px;
+  gap: var(--spacing-2);
+  max-height: 240px;
   overflow-y: auto;
-  border: 1px solid #ddd;
-  padding: 0.5rem;
-  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-3);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-base);
+  font-size: var(--font-size-sm);
+}
+
+.checkbox-label:hover {
+  background: var(--color-bg-tertiary);
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: auto;
+  width: 18px;
+  height: 18px;
   margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary);
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-8);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--color-border);
 }
 
 .loading {
   text-align: center;
-  padding: 2rem;
-  color: #666;
+  padding: var(--spacing-10);
+  color: var(--color-text-secondary);
 }
 
 .error-message {
-  background: #fee;
-  color: #c33;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #fcc;
+  background: #FEF2F2;
+  color: var(--color-error);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-6);
+  border: 1px solid #FECACA;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
 }
+
+@media (max-width: 768px) {
+  .admin-page {
+    padding: var(--spacing-4) var(--spacing-3);
+  }
+  
+  .teams-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal {
+    padding: var(--spacing-6);
+  }
+}
+</style>
 </style>
 
