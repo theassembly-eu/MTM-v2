@@ -82,6 +82,7 @@ router.post('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) =>
 
     // Hash password
     const passwordHash = await hashPassword(password);
+    console.log('Creating user:', { email: email.toLowerCase(), role: userRole, hasPassword: !!passwordHash });
 
     const user = await User.create({
       email: email.toLowerCase(),
@@ -90,6 +91,7 @@ router.post('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) =>
       role: userRole,
       teams: teams || [],
     });
+    console.log('User created successfully:', user._id.toString());
 
     const userResponse = await User.findById(user._id).select('-passwordHash').populate('teams', 'name');
     res.status(201).json(userResponse);

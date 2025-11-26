@@ -129,14 +129,17 @@ app.post('/api/auth/login', async (req, res) => {
     // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() }).populate('teams');
     if (!user) {
+      console.log('Login failed: User not found for email:', email.toLowerCase());
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Verify password
     const isPasswordValid = await comparePassword(password, user.passwordHash);
     if (!isPasswordValid) {
+      console.log('Login failed: Invalid password for user:', user.email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+    console.log('Login successful for user:', user.email);
 
     // Generate JWT token
     const token = signToken({
