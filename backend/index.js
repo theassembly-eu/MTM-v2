@@ -29,8 +29,37 @@ if (process.env.APP_CONFIG) {
   const config = JSON.parse(process.env.APP_CONFIG);
   const mongoPassword = process.env.MONGO_PASSWORD; // You need to set this in EvenNode environment variables
   if (config.mongo && mongoPassword) {
-    // Append database name to connection string
-    mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${config.mongo.hostString}/${MONGODB_DATABASE}`;
+    const hostString = config.mongo.hostString;
+    // EvenNode's hostString format: "host1:port,host2:port/database?queryParams"
+    // We need to replace the database name if it exists, or add it if it doesn't
+    
+    // Check if hostString contains a database path (has /)
+    if (hostString.includes('/')) {
+      // Split on / to separate host from path
+      const slashIndex = hostString.indexOf('/');
+      const hostPart = hostString.substring(0, slashIndex);
+      const pathPart = hostString.substring(slashIndex + 1);
+      
+      // Check if pathPart has query params
+      if (pathPart.includes('?')) {
+        // Has query params, replace database name before ?
+        const questionIndex = pathPart.indexOf('?');
+        const queryPart = pathPart.substring(questionIndex);
+        mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${hostPart}/${MONGODB_DATABASE}${queryPart}`;
+      } else {
+        // No query params, just replace database name
+        mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${hostPart}/${MONGODB_DATABASE}`;
+      }
+    } else if (hostString.includes('?')) {
+      // hostString has query params but no database path, add database before ?
+      const questionIndex = hostString.indexOf('?');
+      const hostPart = hostString.substring(0, questionIndex);
+      const queryPart = hostString.substring(questionIndex);
+      mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${hostPart}/${MONGODB_DATABASE}${queryPart}`;
+    } else {
+      // Simple case: just append database name
+      mongoUri = `mongodb://${config.mongo.user}:${encodeURIComponent(mongoPassword)}@${hostString}/${MONGODB_DATABASE}`;
+    }
   } else {
     console.error('EvenNode APP_CONFIG or MONGO_PASSWORD not properly configured. Falling back to localhost.');
     mongoUri = `mongodb://localhost:27017/${MONGODB_DATABASE}`; // Fallback for local development
@@ -47,8 +76,6 @@ const mongooseOptions = {
   serverSelectionTimeoutMS: 30000, // 30 seconds
   socketTimeoutMS: 45000, // 45 seconds
   connectTimeoutMS: 30000, // 30 seconds
-  bufferCommands: true,
-  bufferMaxEntries: 0, // Disable mongoose buffering
 };
 
 mongoose.connect(mongoUri, mongooseOptions)
