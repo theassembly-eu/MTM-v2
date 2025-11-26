@@ -58,6 +58,9 @@ defineEmits(['edit', 'delete']);
   padding: var(--spacing-6);
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .item-card:hover {
@@ -69,19 +72,20 @@ defineEmits(['edit', 'delete']);
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--spacing-4);
-  min-width: 0;
+  width: 100%;
 }
 
 .item-header > div:first-child {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .item-header h3 {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0;
+  margin: 0 0 var(--spacing-2) 0;
   word-break: break-word;
 }
 
@@ -94,6 +98,7 @@ defineEmits(['edit', 'delete']);
   padding: var(--spacing-1) var(--spacing-2);
   border-radius: var(--radius-sm);
   display: inline-block;
+  word-break: break-all;
 }
 
 .item-description {
@@ -101,6 +106,7 @@ defineEmits(['edit', 'delete']);
   font-size: var(--font-size-sm);
   margin: var(--spacing-2) 0 0 0;
   line-height: var(--line-height-relaxed);
+  word-break: break-word;
 }
 
 .item-actions {
