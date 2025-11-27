@@ -48,12 +48,29 @@
           v-model="selectedLvlId" 
           required
           :disabled="!selectedProjectId || loading || loadingLvls"
+          @change="onLvlChange"
         >
           <option value="">Selecteer eerst een project</option>
           <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
             {{ lvl.name }} ({{ lvl.code }})
           </option>
         </select>
+      </div>
+
+      <!-- Place Selection (optional, only if LVL has places) -->
+      <div class="form-group" v-if="availablePlaces.length > 0">
+        <label for="place-select">Plaats (optioneel)</label>
+        <select 
+          id="place-select" 
+          v-model="selectedPlace" 
+          :disabled="!selectedLvlId || loading"
+        >
+          <option value="">Geen specifieke plaats</option>
+          <option v-for="place in availablePlaces" :key="place" :value="place">
+            {{ place }}
+          </option>
+        </select>
+        <small class="form-hint">Selecteer een specifieke plaats voor extra context</small>
       </div>
 
       <!-- Target Audience -->
@@ -265,6 +282,7 @@ const error = ref(null);
 const selectedTeamId = ref('');
 const selectedProjectId = ref('');
 const selectedLvlId = ref('');
+const selectedPlace = ref('');
 const selectedTargetAudienceId = ref('');
 const selectedOutputFormatId = ref('');
 const selectedLanguageId = ref('');
@@ -365,6 +383,12 @@ const availableLvls = computed(() => {
 const availableReferences = computed(() => {
   if (!selectedProjectId.value) return [];
   return references.value.filter(ref => ref.project === selectedProjectId.value);
+});
+
+const availablePlaces = computed(() => {
+  if (!selectedLvlId.value) return [];
+  const lvl = lvls.value.find(l => l.id === selectedLvlId.value);
+  return lvl?.places || [];
 });
 
 const isFormValid = computed(() => {
@@ -470,6 +494,7 @@ async function fetchLvls() {
       id: lvl._id || lvl.id,
       name: lvl.name,
       code: lvl.code,
+      places: lvl.places || [],
     }));
   } catch (err) {
     console.error('Error fetching LVLs:', err);
@@ -556,8 +581,13 @@ function onTeamChange() {
 
 function onProjectChange() {
   selectedLvlId.value = '';
+  selectedPlace.value = '';
   selectedReferenceIds.value = [];
   fetchReferences();
+}
+
+function onLvlChange() {
+  selectedPlace.value = '';
 }
 
 function addIncludeKeyword() {
@@ -607,6 +637,7 @@ async function handleSimplify() {
       teamId: selectedTeamId.value,
       projectId: selectedProjectId.value,
       lvlId: selectedLvlId.value,
+      place: selectedPlace.value || undefined,
       targetAudienceId: selectedTargetAudienceId.value,
       outputFormatId: selectedOutputFormatId.value,
       languageId: selectedLanguageId.value,
@@ -679,6 +710,13 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.form-hint {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
 .simplify-page {
   max-width: 900px;
   margin: 0 auto;

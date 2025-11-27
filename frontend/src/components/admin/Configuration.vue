@@ -2,7 +2,7 @@
   <div class="admin-page">
     <div class="page-header">
       <h1>Configuratie Beheer</h1>
-      <p class="page-subtitle">Beheer Doelgroepen, Output Formaten en Talen</p>
+      <p class="page-subtitle">Beheer LVLs, Doelgroepen, Output Formaten en Talen</p>
     </div>
 
     <!-- Tabs -->
@@ -68,6 +68,22 @@
       />
     </div>
 
+    <!-- LVLs -->
+    <div v-if="activeTab === 'lvls'" class="config-section">
+      <div class="section-header">
+        <h2>Communicatieniveaus (LVLs)</h2>
+        <button @click="showCreateModal('lvl')" class="btn-primary">
+          Nieuw LVL
+        </button>
+      </div>
+      <ConfigList
+        :items="lvls"
+        :itemType="'lvl'"
+        @edit="editItem"
+        @delete="deleteItem"
+      />
+    </div>
+
     <!-- Create/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal" @click.stop>
@@ -77,13 +93,23 @@
             <label>Naam *</label>
             <input v-model="itemForm.name" type="text" required />
           </div>
-          <div v-if="activeTab === 'languages'" class="form-group">
+          <div v-if="activeTab === 'languages' || activeTab === 'lvls'" class="form-group">
             <label>Code *</label>
-            <input v-model="itemForm.code" type="text" required placeholder="Bijv. DUTCH" />
+            <input v-model="itemForm.code" type="text" required placeholder="Bijv. DUTCH of LOCAL" />
           </div>
           <div class="form-group">
             <label>Beschrijving</label>
             <textarea v-model="itemForm.description" rows="3"></textarea>
+          </div>
+          <div v-if="activeTab === 'lvls'" class="form-group">
+            <label>Plaatsen (één per regel)</label>
+            <textarea 
+              v-model="placesText" 
+              rows="5" 
+              placeholder="Antwerpen&#10;Gent&#10;Brussel"
+              @input="updatePlaces"
+            ></textarea>
+            <small class="form-hint">Voeg plaatsen toe, één per regel. Deze worden gebruikt voor contextuele vereenvoudiging.</small>
           </div>
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="btn-cancel">Annuleren</button>
@@ -114,14 +140,19 @@ const editingType = ref(null);
 const targetAudiences = ref([]);
 const outputFormats = ref([]);
 const languages = ref([]);
+const lvls = ref([]);
 
 const itemForm = ref({
   name: '',
   code: '',
   description: '',
+  places: [],
 });
 
+const placesText = ref('');
+
 const tabs = [
+  { id: 'lvls', label: 'LVLs' },
   { id: 'audiences', label: 'Doelgroepen' },
   { id: 'formats', label: 'Output Formaten' },
   { id: 'languages', label: 'Talen' },
@@ -129,6 +160,7 @@ const tabs = [
 
 function getItemTypeLabel() {
   switch (activeTab.value) {
+    case 'lvls': return 'LVL';
     case 'audiences': return 'Doelgroep';
     case 'formats': return 'Output Formaat';
     case 'languages': return 'Taal';
@@ -138,6 +170,7 @@ function getItemTypeLabel() {
 
 function getApiEndpoint() {
   switch (activeTab.value) {
+    case 'lvls': return '/api/lvls';
     case 'audiences': return '/api/target-audiences';
     case 'formats': return '/api/output-formats';
     case 'languages': return '/api/languages';
@@ -147,6 +180,7 @@ function getApiEndpoint() {
 
 function getCurrentItems() {
   switch (activeTab.value) {
+    case 'lvls': return lvls;
     case 'audiences': return targetAudiences;
     case 'formats': return outputFormats;
     case 'languages': return languages;
@@ -158,11 +192,20 @@ async function fetchData() {
   loading.value = true;
   error.value = null;
   try {
-    const [audiencesRes, formatsRes, languagesRes] = await Promise.all([
+    const [lvlsRes, audiencesRes, formatsRes, languagesRes] = await Promise.all([
+      axios.get('/api/lvls'),
       axios.get('/api/target-audiences'),
       axios.get('/api/output-formats'),
       axios.get('/api/languages'),
     ]);
+
+    lvls.value = lvlsRes.data.map(l => ({
+      id: l._id || l.id,
+      name: l.name,
+      code: l.code,
+      description: l.description || '',
+      places: l.places || [],
+    }));
 
     targetAudiences.value = audiencesRes.data.map(a => ({
       id: a._id || a.id,
@@ -197,8 +240,17 @@ function showCreateModal(type) {
     name: '',
     code: '',
     description: '',
+    places: [],
   };
+  placesText.value = '';
   showModal.value = true;
+}
+
+function updatePlaces() {
+  itemForm.value.places = placesText.value
+    .split('\n')
+    .map(p => p.trim())
+    .filter(p => p.length > 0);
 }
 
 function editItem(item) {
@@ -208,7 +260,9 @@ function editItem(item) {
     name: item.name,
     code: item.code || '',
     description: item.description || '',
+    places: item.places || [],
   };
+  placesText.value = (item.places || []).join('\n');
   showModal.value = true;
 }
 
@@ -220,7 +274,9 @@ function closeModal() {
     name: '',
     code: '',
     description: '',
+    places: [],
   };
+  placesText.value = '';
 }
 
 async function saveItem() {
@@ -230,7 +286,13 @@ async function saveItem() {
     const endpoint = getApiEndpoint();
     const data = { ...itemForm.value };
     
-    if (activeTab.value === 'languages' && data.code) {
+    // Update places from textarea before saving
+    if (activeTab.value === 'lvls') {
+      updatePlaces();
+      data.places = itemForm.value.places;
+    }
+    
+    if ((activeTab.value === 'languages' || activeTab.value === 'lvls') && data.code) {
       data.code = data.code.toUpperCase();
     }
 
@@ -254,6 +316,7 @@ async function deleteItem(item, type) {
   try {
     let endpoint = '';
     switch (type) {
+      case 'lvl': endpoint = '/api/lvls'; break;
       case 'audience': endpoint = '/api/target-audiences'; break;
       case 'format': endpoint = '/api/output-formats'; break;
       case 'language': endpoint = '/api/languages'; break;
@@ -350,6 +413,14 @@ onMounted(() => {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.form-hint {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 /* Reuse other styles from TeamsProjects */

@@ -39,6 +39,7 @@ const lvlStyleMap = {
 function buildPrompt({
   text,
   lvl,
+  place,
   targetAudience,
   outputFormat,
   language,
@@ -59,6 +60,11 @@ function buildPrompt({
     if (lvl.places && lvl.places.length > 0) {
       prompt += `Available Places for this Level: ${lvl.places.join(', ')}\n`;
       prompt += `When relevant, use local terminology, names, and context specific to these places.\n\n`;
+      
+      // If a specific place is selected, emphasize it
+      if (place && lvl.places.includes(place)) {
+        prompt += `IMPORTANT: This text is specifically for ${place}. Use local terminology, names of institutions, and context specific to ${place}. Reference local landmarks, districts, or relevant local information when appropriate.\n\n`;
+      }
     }
   }
 
@@ -185,6 +191,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       teamId,
       projectId,
       lvlId,
+      place,
       targetAudienceId,
       outputFormatId,
       languageId,
@@ -257,6 +264,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     let prompt = buildPrompt({
       text,
       lvl,
+      place,
       targetAudience,
       outputFormat,
       language,

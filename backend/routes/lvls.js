@@ -68,5 +68,36 @@ router.put('/:id', authenticate, requireRole('SUPER_ADMIN'), async (req, res) =>
   }
 });
 
+// DELETE /api/lvls/:id - Delete LVL (SUPER_ADMIN only)
+router.delete('/:id', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const lvl = await LVL.findById(req.params.id);
+    if (!lvl) {
+      return res.status(404).json({ error: 'LVL not found' });
+    }
+
+    // Check if LVL is used in any teams or projects
+    const Team = (await import('../models/Team.js')).default;
+    const Project = (await import('../models/Project.js')).default;
+    
+    const teamsUsingLvl = await Team.countDocuments({ lvls: req.params.id });
+    const projectsUsingLvl = await Project.countDocuments({ lvls: req.params.id });
+
+    if (teamsUsingLvl > 0 || projectsUsingLvl > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete LVL that is in use',
+        teamsCount: teamsUsingLvl,
+        projectsCount: projectsUsingLvl,
+      });
+    }
+
+    await LVL.findByIdAndDelete(req.params.id);
+    res.json({ message: 'LVL deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting LVL:', error);
+    res.status(500).json({ error: 'Failed to delete LVL', code: 'DELETE_ERROR' });
+  }
+});
+
 export default router;
 

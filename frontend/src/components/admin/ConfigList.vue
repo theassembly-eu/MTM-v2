@@ -14,6 +14,9 @@
             <h3>{{ item.name }}</h3>
             <p v-if="item.code" class="item-code">{{ item.code }}</p>
             <p v-if="item.description" class="item-description">{{ item.description }}</p>
+            <div v-if="item.places && item.places.length > 0" class="item-places">
+              <strong>Plaatsen:</strong> {{ item.places.join(', ') }}
+            </div>
           </div>
           <div class="item-actions">
             <button @click="$emit('edit', item)" class="btn-edit">Bewerken</button>
@@ -108,6 +111,19 @@ defineEmits(['edit', 'delete']);
   margin: var(--spacing-2) 0 0 0;
   line-height: var(--line-height-relaxed);
   word-break: break-word;
+}
+
+.item-places {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  margin: var(--spacing-2) 0 0 0;
+  line-height: var(--line-height-relaxed);
+  word-break: break-word;
+}
+
+.item-places strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
 }
 
 .item-actions {
