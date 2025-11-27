@@ -688,7 +688,14 @@ async function generatePrompt() {
   promptExplanation.value = '';
 
   try {
-    const response = await axios.post('/api/prompts/generate', {
+    // Validate required fields
+    if (!selectedLvlId.value) {
+      promptError.value = 'Selecteer eerst een LVL voordat je een prompt genereert';
+      generatingPrompt.value = false;
+      return;
+    }
+
+    const requestData = {
       keywords: includeKeywords.value,
       lvlCode: selectedLvl.value?.code,
       lvlName: selectedLvl.value?.name,
@@ -698,7 +705,11 @@ async function generatePrompt() {
       place: selectedPlace.value || undefined,
       geoContext: geoContext.value || undefined,
       projectName: selectedProjectName.value || undefined,
-    });
+    };
+
+    console.log('Generating prompt with data:', requestData);
+
+    const response = await axios.post('/api/prompts/generate', requestData);
 
     generatedPrompt.value = response.data.prompt;
     promptExplanation.value = response.data.explanation || '';
