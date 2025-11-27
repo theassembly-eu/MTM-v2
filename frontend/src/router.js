@@ -7,6 +7,7 @@ import TeamsProjects from './components/admin/TeamsProjects.vue';
 import References from './components/admin/References.vue';
 import Users from './components/admin/Users.vue';
 import Configuration from './components/admin/Configuration.vue';
+import Analytics from './components/admin/Analytics.vue';
 
 const routes = [
   {
@@ -59,6 +60,12 @@ const routes = [
     path: '/admin/config',
     name: 'AdminConfig',
     component: Configuration,
+    meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN'] },
+  },
+  {
+    path: '/admin/analytics',
+    name: 'AdminAnalytics',
+    component: Analytics,
     meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN'] },
   },
 ];

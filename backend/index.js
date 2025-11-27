@@ -194,9 +194,11 @@ app.use('/api', configRouter); // Config routes use /api/target-audiences, /api/
 app.use('/api', dictionaryRouter); // Dictionary routes use /api/projects/:id/dictionary and /api/dictionary/:id
 import requestLogsRouter from './routes/requestLogs.js';
 import simplifyRouter from './routes/simplify.js';
+import analyticsRouter from './routes/analytics.js';
 
 app.use('/api/request-logs', requestLogsRouter);
 app.use('/api/simplify', simplifyRouter);
+app.use('/api/analytics', analyticsRouter);
 
 // Temporary seed endpoint (REMOVE AFTER FIRST USE!)
 // This allows seeding the database via API call after deployment
