@@ -424,6 +424,21 @@
         <div class="result-text" v-html="formatSimplifiedText(simplifiedText)"></div>
       </div>
 
+      <!-- Research Sources -->
+      <div v-if="researchSources.length > 0" class="research-sources">
+        <h3>Onderzoeksbronnen:</h3>
+        <ul class="sources-list">
+          <li v-for="(source, index) in researchSources" :key="index" class="source-item">
+            <a :href="source.url" target="_blank" rel="noopener noreferrer" class="source-link">
+              {{ source.title || source.url }}
+            </a>
+            <span v-if="source.relevanceScore" class="relevance-score">
+              (Relevantie: {{ (source.relevanceScore * 100).toFixed(0) }}%)
+            </span>
+          </li>
+        </ul>
+      </div>
+
       <!-- Context Summary -->
       <div class="context-summary">
         <h3>Context Samenvatting:</h3>
