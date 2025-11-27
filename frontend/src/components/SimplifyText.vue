@@ -477,6 +477,22 @@ const availablePlaces = computed(() => {
   return lvl?.places || [];
 });
 
+const selectedLvl = computed(() => {
+  return lvls.value.find(l => l.id === selectedLvlId.value);
+});
+
+const selectedTargetAudience = computed(() => {
+  return targetAudiences.value.find(a => a.id === selectedTargetAudienceId.value);
+});
+
+const selectedOutputFormat = computed(() => {
+  return outputFormats.value.find(f => f.id === selectedOutputFormatId.value);
+});
+
+const selectedLanguage = computed(() => {
+  return languages.value.find(l => l.id === selectedLanguageId.value);
+});
+
 const isFormValid = computed(() => {
   return selectedTeamId.value && 
          selectedProjectId.value && 
