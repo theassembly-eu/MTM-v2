@@ -138,7 +138,18 @@ import PromptTemplatesTab from './PromptTemplatesTab.vue';
 const loading = ref(false);
 const saving = ref(false);
 const error = ref(null);
-const activeTab = ref('audiences');
+// Check for hash in URL to set initial tab
+const getInitialTab = () => {
+  if (typeof window !== 'undefined' && window.location.hash) {
+    const hash = window.location.hash.replace('#', '');
+    if (['audiences', 'formats', 'languages', 'lvls', 'templates'].includes(hash)) {
+      return hash;
+    }
+  }
+  return 'audiences';
+};
+
+const activeTab = ref(getInitialTab());
 const showModal = ref(false);
 const editingItem = ref(null);
 const editingType = ref(null);
@@ -162,6 +173,7 @@ const tabs = [
   { id: 'audiences', label: 'Doelgroepen' },
   { id: 'formats', label: 'Output Formaten' },
   { id: 'languages', label: 'Talen' },
+  { id: 'templates', label: 'Prompt Templates' },
 ];
 
 function getItemTypeLabel() {
