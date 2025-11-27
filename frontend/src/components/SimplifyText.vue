@@ -1051,6 +1051,14 @@ async function handleSimplify() {
 
     simplifiedText.value = response.data.simplifiedText;
     resultMeta.value = response.data.meta;
+    
+    // Store research sources if available (check both meta.sources and direct sources)
+    if (researchMode.value) {
+      const sources = response.data.meta?.sources || response.data.sources || [];
+      researchSources.value = sources;
+      researchProgress.value = '';
+      console.log('Research mode - sources found:', sources.length, sources);
+    }
 
     // Scroll to result
     setTimeout(() => {
