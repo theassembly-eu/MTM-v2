@@ -200,8 +200,10 @@ app.use('/api/request-logs', requestLogsRouter);
 app.use('/api/simplify', simplifyRouter);
 app.use('/api/analytics', analyticsRouter);
 import promptsRouter from './routes/prompts.js';
+import promptTemplatesRouter from './routes/promptTemplates.js';
 
 app.use('/api/prompts', promptsRouter);
+app.use('/api/prompt-templates', promptTemplatesRouter);
 
 // Temporary seed endpoint (REMOVE AFTER FIRST USE!)
 // This allows seeding the database via API call after deployment

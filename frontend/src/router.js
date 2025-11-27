@@ -8,6 +8,7 @@ import References from './components/admin/References.vue';
 import Users from './components/admin/Users.vue';
 import Configuration from './components/admin/Configuration.vue';
 import Analytics from './components/admin/Analytics.vue';
+import PromptTemplates from './components/admin/PromptTemplates.vue';
 
 const routes = [
   {
@@ -67,6 +68,12 @@ const routes = [
     name: 'AdminAnalytics',
     component: Analytics,
     meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN'] },
+  },
+  {
+    path: '/admin/prompt-templates',
+    name: 'AdminPromptTemplates',
+    component: PromptTemplates,
+    meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER', 'TEAM_MEMBER'] },
   },
 ];
 

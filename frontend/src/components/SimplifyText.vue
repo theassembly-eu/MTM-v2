@@ -222,6 +222,77 @@
         </div>
       </div>
 
+      <!-- Prompt Templates -->
+      <div class="optional-section">
+        <div class="section-header-toggle">
+          <h3>Prompt Templates</h3>
+          <button 
+            type="button" 
+            @click="showTemplates = !showTemplates"
+            class="btn-toggle"
+            :disabled="loading"
+          >
+            {{ showTemplates ? 'Verberg' : 'Toon' }}
+          </button>
+        </div>
+
+        <div v-if="showTemplates" class="templates-section">
+          <div class="form-group">
+            <label>Selecteer een Template</label>
+            <select 
+              v-model="selectedTemplateId" 
+              @change="onTemplateSelect"
+              :disabled="loading || loadingTemplates"
+              class="template-select"
+            >
+              <option value="">-- Geen template --</option>
+              <option v-for="template in availableTemplates" :key="template.id" :value="template.id">
+                {{ template.name }} ({{ template.scope }})
+              </option>
+            </select>
+            <button 
+              type="button" 
+              @click="openTemplateLibrary"
+              class="btn-secondary"
+              :disabled="loading"
+            >
+              Beheer Templates
+            </button>
+          </div>
+
+          <div v-if="selectedTemplate" class="template-preview">
+            <div class="template-info">
+              <strong>{{ selectedTemplate.name }}</strong>
+              <span v-if="selectedTemplate.description" class="template-description">
+                {{ selectedTemplate.description }}
+              </span>
+              <span class="template-meta">
+                Scope: {{ selectedTemplate.scope }} | 
+                Gebruikt: {{ selectedTemplate.usageCount || 0 }}x
+              </span>
+            </div>
+            <div class="template-actions">
+              <button 
+                type="button" 
+                @click="useTemplatePrompt"
+                class="btn-primary"
+                :disabled="loading"
+              >
+                Gebruik Deze Template
+              </button>
+              <button 
+                type="button" 
+                @click="enhanceTemplateWithAI"
+                class="btn-secondary"
+                :disabled="loading || generatingPrompt"
+              >
+                Verbeter met AI
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- AI Prompt Generator -->
       <div class="optional-section">
         <div class="section-header-toggle">
@@ -371,6 +442,14 @@ const avoidKeywords = ref([]);
 const newIncludeKeyword = ref('');
 const newAvoidKeyword = ref('');
 const selectedReferenceIds = ref([]);
+
+// Prompt Templates
+const showTemplates = ref(false);
+const templates = ref([]);
+const loadingTemplates = ref(false);
+const selectedTemplateId = ref('');
+const selectedTemplate = ref(null);
+const showTemplateLibrary = ref(false);
 
 // AI Prompt Generator
 const showPromptGenerator = ref(false);
@@ -692,6 +771,97 @@ function onLvlChange() {
   selectedPlace.value = '';
 }
 
+async function fetchTemplates() {
+  loadingTemplates.value = true;
+  try {
+    const params = new URLSearchParams();
+    if (selectedTeamId.value) params.append('teamId', selectedTeamId.value);
+    if (selectedProjectId.value) params.append('projectId', selectedProjectId.value);
+    
+    const response = await axios.get(`/api/prompt-templates?${params.toString()}`);
+    templates.value = response.data.map(t => ({
+      id: t._id || t.id,
+      name: t.name,
+      description: t.description,
+      prompt: t.prompt,
+      scope: t.scope,
+      team: t.team,
+      project: t.project,
+      usageCount: t.usageCount || 0,
+      context: t.context,
+    }));
+  } catch (err) {
+    console.error('Error fetching templates:', err);
+  } finally {
+    loadingTemplates.value = false;
+  }
+}
+
+function onTemplateSelect() {
+  if (!selectedTemplateId.value) {
+    selectedTemplate.value = null;
+    return;
+  }
+  
+  selectedTemplate.value = templates.value.find(t => t.id === selectedTemplateId.value);
+}
+
+function useTemplatePrompt() {
+  if (!selectedTemplate.value) return;
+  
+  // Set the generated prompt to the template's prompt
+  generatedPrompt.value = selectedTemplate.value.prompt;
+  useCustomPrompt.value = true;
+  
+  // Record usage
+  axios.post(`/api/prompt-templates/${selectedTemplate.value.id}/use`).catch(err => {
+    console.error('Error recording template usage:', err);
+  });
+  
+  // Scroll to prompt generator section
+  showPromptGenerator.value = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function enhanceTemplateWithAI() {
+  if (!selectedTemplate.value) return;
+  
+  // Use the template's context if available, otherwise use current form context
+  const context = selectedTemplate.value.context || {};
+  
+  generatingPrompt.value = true;
+  promptError.value = '';
+  
+  try {
+    const response = await axios.post('/api/prompts/generate', {
+      keywords: includeKeywords.value.length > 0 ? includeKeywords.value : (context.keywords || []),
+      lvlCode: selectedLvl.value?.code || context.lvlCode,
+      lvlName: selectedLvl.value?.name || context.lvlName,
+      targetAudience: selectedTargetAudience.value?.name || context.targetAudience,
+      outputFormat: selectedOutputFormat.value?.name || context.outputFormat,
+      language: selectedLanguage.value?.name || context.language || 'Dutch',
+      place: selectedPlace.value || context.place,
+      geoContext: geoContext.value || context.geoContext,
+      projectName: selectedProjectName.value || context.projectName,
+    });
+    
+    // Enhance the template prompt with AI suggestions
+    generatedPrompt.value = response.data.prompt;
+    promptExplanation.value = `AI-verbeterde versie van "${selectedTemplate.value.name}". ${response.data.explanation || ''}`;
+    useCustomPrompt.value = true;
+  } catch (err) {
+    console.error('Error enhancing template:', err);
+    promptError.value = err.response?.data?.error || 'Fout bij het verbeteren van de template';
+  } finally {
+    generatingPrompt.value = false;
+  }
+}
+
+function openTemplateLibrary() {
+  // Navigate to template library page
+  window.location.href = '/admin/prompt-templates';
+}
+
 async function generatePrompt() {
   if (includeKeywords.value.length === 0) {
     promptError.value = 'Voeg eerst trefwoorden toe om een prompt te genereren';
@@ -873,6 +1043,7 @@ onMounted(async () => {
     fetchTargetAudiences(),
     fetchOutputFormats(),
     fetchLanguages(),
+    fetchTemplates(),
   ]);
   
   console.log('Data loaded:', {
