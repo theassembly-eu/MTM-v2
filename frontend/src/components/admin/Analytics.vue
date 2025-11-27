@@ -78,12 +78,14 @@
       <div class="charts-row">
         <div class="chart-card">
           <h2>Requests Over Tijd</h2>
-          <LineChart 
-            v-if="analytics.requestsOverTime.length > 0"
-            :data="requestsOverTimeChartData"
-            :options="lineChartOptions"
-          />
-          <div v-else class="no-data">Geen data beschikbaar</div>
+          <div class="chart-wrapper">
+            <LineChart 
+              v-if="analytics.requestsOverTime.length > 0"
+              :data="requestsOverTimeChartData"
+              :options="lineChartOptions"
+            />
+            <div v-else class="no-data">Geen data beschikbaar</div>
+          </div>
         </div>
       </div>
 
@@ -91,21 +93,25 @@
       <div class="charts-row">
         <div class="chart-card">
           <h2>Requests per Gebruiker (Top 10)</h2>
-          <BarChart 
-            v-if="analytics.requestsPerUser.length > 0"
-            :data="requestsPerUserChartData"
-            :options="barChartOptions"
-          />
-          <div v-else class="no-data">Geen data beschikbaar</div>
+          <div class="chart-wrapper">
+            <BarChart 
+              v-if="analytics.requestsPerUser.length > 0"
+              :data="requestsPerUserChartData"
+              :options="barChartOptions"
+            />
+            <div v-else class="no-data">Geen data beschikbaar</div>
+          </div>
         </div>
         <div class="chart-card">
           <h2>Requests per Team (Top 10)</h2>
-          <BarChart 
-            v-if="analytics.requestsPerTeam.length > 0"
-            :data="requestsPerTeamChartData"
-            :options="barChartOptions"
-          />
-          <div v-else class="no-data">Geen data beschikbaar</div>
+          <div class="chart-wrapper">
+            <BarChart 
+              v-if="analytics.requestsPerTeam.length > 0"
+              :data="requestsPerTeamChartData"
+              :options="barChartOptions"
+            />
+            <div v-else class="no-data">Geen data beschikbaar</div>
+          </div>
         </div>
       </div>
 
@@ -113,21 +119,25 @@
       <div class="charts-row">
         <div class="chart-card">
           <h2>LVL Gebruik</h2>
-          <DoughnutChart 
-            v-if="analytics.lvlUsage.length > 0"
-            :data="lvlUsageChartData"
-            :options="doughnutChartOptions"
-          />
-          <div v-else class="no-data">Geen data beschikbaar</div>
+          <div class="chart-wrapper">
+            <DoughnutChart 
+              v-if="analytics.lvlUsage.length > 0"
+              :data="lvlUsageChartData"
+              :options="doughnutChartOptions"
+            />
+            <div v-else class="no-data">Geen data beschikbaar</div>
+          </div>
         </div>
         <div class="chart-card">
           <h2>Populaire Trefwoorden (Top 20)</h2>
-          <BarChart 
-            v-if="analytics.popularKeywords.length > 0"
-            :data="popularKeywordsChartData"
-            :options="barChartOptions"
-          />
-          <div v-else class="no-data">Geen data beschikbaar</div>
+          <div class="chart-wrapper">
+            <BarChart 
+              v-if="analytics.popularKeywords.length > 0"
+              :data="popularKeywordsChartData"
+              :options="barChartOptions"
+            />
+            <div v-else class="no-data">Geen data beschikbaar</div>
+          </div>
         </div>
       </div>
 
@@ -455,7 +465,7 @@ onMounted(() => {
 
 .charts-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
   gap: var(--spacing-6);
   margin-bottom: var(--spacing-6);
 }
@@ -466,18 +476,30 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: var(--spacing-6);
   box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .chart-card h2 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-4) 0;
+  flex-shrink: 0;
 }
 
-.chart-card > div {
+.chart-wrapper {
   height: 300px;
+  min-height: 300px;
+  max-height: 300px;
   position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.chart-wrapper canvas {
+  max-height: 100% !important;
 }
 
 .tables-row {
@@ -569,6 +591,12 @@ onMounted(() => {
   background: var(--color-bg-tertiary);
 }
 
+@media (max-width: 1024px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .charts-row {
     grid-template-columns: 1fr;
@@ -576,6 +604,12 @@ onMounted(() => {
   
   .summary-cards {
     grid-template-columns: 1fr;
+  }
+  
+  .chart-wrapper {
+    height: 250px;
+    min-height: 250px;
+    max-height: 250px;
   }
 }
 </style>
