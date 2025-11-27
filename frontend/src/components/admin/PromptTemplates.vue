@@ -135,9 +135,9 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 
-const { user, hasRole } = useAuth();
+const { user, userTeams } = useAuth();
 const userRole = computed(() => user.value?.role || '');
-const userTeams = computed(() => user.value?.teams || []);
+const userTeamsList = computed(() => userTeams.value || []);
 
 const templates = ref([]);
 const loading = ref(false);
@@ -163,7 +163,7 @@ const availableTeams = computed(() => {
   if (userRole.value === 'SUPER_ADMIN') {
     return teams.value;
   }
-  return teams.value.filter(t => userTeams.value.includes(t.id));
+  return teams.value.filter(t => userTeamsList.value.some(ut => String(ut.id || ut) === String(t.id)));
 });
 
 const availableProjects = computed(() => {
