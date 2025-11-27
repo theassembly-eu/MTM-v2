@@ -199,6 +199,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       includeKeywords,
       avoidKeywords,
       referenceIds,
+      customPrompt,
     } = req.body;
 
     // Validate required fields
@@ -261,20 +262,31 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       simplifiedTerm: entry.simplifiedTerm,
     }));
 
-    let prompt = buildPrompt({
-      text,
-      lvl,
-      place,
-      targetAudience,
-      outputFormat,
-      language,
-      geoContext,
-      includeKeywords: includeKeywords || [],
-      avoidKeywords: avoidKeywords || [],
-      referenceSummaries,
-      dictionaryTerms,
-      projectName: project.name,
-    });
+    // Use custom prompt if provided, otherwise build standard prompt
+    let prompt;
+    if (customPrompt) {
+      // If custom prompt is provided, use it but still add the text to simplify
+      prompt = customPrompt;
+      if (!prompt.includes(text)) {
+        prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${text}"`;
+      }
+    } else {
+      // Build standard enriched prompt
+      prompt = buildPrompt({
+        text,
+        lvl,
+        place,
+        targetAudience,
+        outputFormat,
+        language,
+        geoContext,
+        includeKeywords: includeKeywords || [],
+        avoidKeywords: avoidKeywords || [],
+        referenceSummaries,
+        dictionaryTerms,
+        projectName: project.name,
+      });
+    }
 
     // Truncate if needed
     prompt = truncatePrompt(prompt);

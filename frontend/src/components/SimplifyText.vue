@@ -222,6 +222,84 @@
         </div>
       </div>
 
+      <!-- AI Prompt Generator -->
+      <div class="optional-section">
+        <div class="section-header-toggle">
+          <h3>AI Prompt Generator (Experimenteel)</h3>
+          <button 
+            type="button" 
+            @click="showPromptGenerator = !showPromptGenerator"
+            class="btn-toggle"
+            :disabled="loading"
+          >
+            {{ showPromptGenerator ? 'Verberg' : 'Toon' }}
+          </button>
+        </div>
+
+        <div v-if="showPromptGenerator" class="prompt-generator">
+          <div class="form-group">
+            <label>Genereer een geoptimaliseerde prompt op basis van je trefwoorden en context</label>
+            <p class="form-hint">
+              De AI analyseert je trefwoorden en context om een geoptimaliseerde prompt te genereren voor betere resultaten.
+            </p>
+            <button 
+              type="button" 
+              @click="generatePrompt" 
+              :disabled="loading || generatingPrompt || includeKeywords.length === 0"
+              class="btn-secondary"
+            >
+              <span v-if="generatingPrompt">Genereren...</span>
+              <span v-else>Genereer Prompt</span>
+            </button>
+          </div>
+
+          <div v-if="generatedPrompt" class="generated-prompt-section">
+            <div class="form-group">
+              <label>Gegenereerde Prompt</label>
+              <div v-if="promptExplanation" class="prompt-explanation">
+                <strong>Uitleg:</strong> {{ promptExplanation }}
+              </div>
+              <textarea 
+                v-model="generatedPrompt" 
+                rows="12" 
+                class="prompt-textarea"
+                placeholder="Gegenereerde prompt verschijnt hier..."
+              ></textarea>
+              <div class="prompt-actions">
+                <button 
+                  type="button" 
+                  @click="useGeneratedPrompt" 
+                  :disabled="loading"
+                  class="btn-primary"
+                >
+                  Gebruik Deze Prompt
+                </button>
+                <button 
+                  type="button" 
+                  @click="regeneratePrompt" 
+                  :disabled="loading || generatingPrompt"
+                  class="btn-secondary"
+                >
+                  Opnieuw Genereren
+                </button>
+                <button 
+                  type="button" 
+                  @click="clearGeneratedPrompt" 
+                  :disabled="loading"
+                  class="btn-cancel"
+                >
+                  Wissen
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="promptError" class="error-message">
+            {{ promptError }}
+          </div>
+        </div>
+      </div>
+
       <!-- Submit Button -->
       <button type="submit" :disabled="loading || !isFormValid" class="submit-button">
         <span v-if="loading">Aan het vereenvoudigen...</span>
@@ -293,6 +371,14 @@ const avoidKeywords = ref([]);
 const newIncludeKeyword = ref('');
 const newAvoidKeyword = ref('');
 const selectedReferenceIds = ref([]);
+
+// AI Prompt Generator
+const showPromptGenerator = ref(false);
+const generatingPrompt = ref(false);
+const generatedPrompt = ref('');
+const promptExplanation = ref('');
+const promptError = ref('');
+const useCustomPrompt = ref(false);
 
 // Data
 const teams = ref([]);
@@ -590,6 +676,58 @@ function onLvlChange() {
   selectedPlace.value = '';
 }
 
+async function generatePrompt() {
+  if (includeKeywords.value.length === 0) {
+    promptError.value = 'Voeg eerst trefwoorden toe om een prompt te genereren';
+    return;
+  }
+
+  generatingPrompt.value = true;
+  promptError.value = '';
+  generatedPrompt.value = '';
+  promptExplanation.value = '';
+
+  try {
+    const response = await axios.post('/api/prompts/generate', {
+      keywords: includeKeywords.value,
+      lvlCode: selectedLvl.value?.code,
+      lvlName: selectedLvl.value?.name,
+      targetAudience: selectedTargetAudience.value?.name,
+      outputFormat: selectedOutputFormat.value?.name,
+      language: selectedLanguage.value?.name || 'Dutch',
+      place: selectedPlace.value || undefined,
+      geoContext: geoContext.value || undefined,
+      projectName: selectedProjectName.value || undefined,
+    });
+
+    generatedPrompt.value = response.data.prompt;
+    promptExplanation.value = response.data.explanation || '';
+  } catch (err) {
+    console.error('Error generating prompt:', err);
+    promptError.value = err.response?.data?.error || 'Fout bij het genereren van de prompt';
+  } finally {
+    generatingPrompt.value = false;
+  }
+}
+
+function useGeneratedPrompt() {
+  // Set flag to use custom prompt
+  useCustomPrompt.value = true;
+  // Scroll to top to show the form is ready
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function regeneratePrompt() {
+  generatePrompt();
+}
+
+function clearGeneratedPrompt() {
+  generatedPrompt.value = '';
+  promptExplanation.value = '';
+  promptError.value = '';
+  useCustomPrompt.value = false;
+}
+
 function addIncludeKeyword() {
   const keyword = newIncludeKeyword.value.trim();
   if (keyword && !includeKeywords.value.includes(keyword)) {
@@ -632,7 +770,7 @@ async function handleSimplify() {
   simplifiedText.value = '';
 
   try {
-    const response = await axios.post('/api/simplify', {
+    const requestData = {
       text: inputText.value,
       teamId: selectedTeamId.value,
       projectId: selectedProjectId.value,
@@ -645,7 +783,14 @@ async function handleSimplify() {
       includeKeywords: includeKeywords.value.length > 0 ? includeKeywords.value : undefined,
       avoidKeywords: avoidKeywords.value.length > 0 ? avoidKeywords.value : undefined,
       referenceIds: selectedReferenceIds.value.length > 0 ? selectedReferenceIds.value : undefined,
-    });
+    };
+
+    // Add custom prompt if generated and user wants to use it
+    if (useCustomPrompt.value && generatedPrompt.value) {
+      requestData.customPrompt = generatedPrompt.value;
+    }
+
+    const response = await axios.post('/api/simplify', requestData);
 
     simplifiedText.value = response.data.simplifiedText;
     resultMeta.value = response.data.meta;
@@ -890,6 +1035,108 @@ onMounted(async () => {
   background: var(--color-bg-secondary);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
+}
+
+.section-header-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+}
+
+.section-header-toggle h3 {
+  margin: 0;
+}
+
+.btn-toggle {
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+}
+
+.btn-toggle:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+}
+
+.prompt-generator {
+  margin-top: var(--spacing-4);
+}
+
+.generated-prompt-section {
+  margin-top: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.prompt-explanation {
+  background: var(--color-bg-tertiary);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.prompt-textarea {
+  width: 100%;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  resize: vertical;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.prompt-actions {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.btn-secondary {
+  padding: var(--spacing-3) var(--spacing-5);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+}
+
+.btn-cancel {
+  padding: var(--spacing-3) var(--spacing-5);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
 }
 
 .reference-checkbox {
