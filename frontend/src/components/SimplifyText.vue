@@ -704,7 +704,9 @@ async function generatePrompt() {
     promptExplanation.value = response.data.explanation || '';
   } catch (err) {
     console.error('Error generating prompt:', err);
-    promptError.value = err.response?.data?.error || 'Fout bij het genereren van de prompt';
+    console.error('Error details:', err.response?.data);
+    const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Fout bij het genereren van de prompt';
+    promptError.value = errorMessage;
   } finally {
     generatingPrompt.value = false;
   }

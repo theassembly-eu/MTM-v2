@@ -97,29 +97,35 @@ router.post('/generate', authenticate, promptGenRateLimit, async (req, res) => {
 
     if (!generatedPrompt) {
       return res.status(500).json({
-        error: 'Failed to generate prompt',
+        error: 'Failed to generate prompt - no content returned from OpenAI',
         code: 'GENERATION_ERROR',
       });
     }
 
-    // Optional: Generate explanation
-    const explanationCompletion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert in AI prompt engineering. Explain why a prompt was structured in a certain way.',
-        },
-        {
-          role: 'user',
-          content: `Explain why this prompt was generated for the given context:\n\nContext: ${contextDescription}\n\nGenerated Prompt:\n${generatedPrompt}\n\nProvide a brief explanation (2-3 sentences) of the key design decisions.`,
-        },
-      ],
-      temperature: 0.5,
-      max_tokens: 200,
-    });
-
-    const explanation = explanationCompletion.choices[0]?.message?.content || '';
+    // Optional: Generate explanation (if first call succeeded)
+    let explanation = '';
+    try {
+      const explanationCompletion = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert in AI prompt engineering. Explain why a prompt was structured in a certain way.',
+          },
+          {
+            role: 'user',
+            content: `Explain why this prompt was generated for the given context:\n\nContext: ${contextDescription}\n\nGenerated Prompt:\n${generatedPrompt}\n\nProvide a brief explanation (2-3 sentences) of the key design decisions.`,
+          },
+        ],
+        temperature: 0.5,
+        max_tokens: 200,
+      });
+      explanation = explanationCompletion.choices[0]?.message?.content || '';
+    } catch (explanationError) {
+      // If explanation generation fails, continue without it
+      console.warn('Failed to generate explanation, continuing without it:', explanationError.message);
+      explanation = '';
+    }
 
     res.json({
       prompt: generatedPrompt,
@@ -144,7 +150,10 @@ router.post('/generate', authenticate, promptGenRateLimit, async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating prompt:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error response:', error.response?.data);
     
+    // Handle OpenAI API errors
     if (error.response?.status === 429) {
       return res.status(429).json({
         error: 'OpenAI API rate limit exceeded. Please try again later.',
@@ -152,10 +161,27 @@ router.post('/generate', authenticate, promptGenRateLimit, async (req, res) => {
       });
     }
     
+    if (error.response?.status === 401) {
+      return res.status(401).json({
+        error: 'OpenAI API authentication failed. Please check API key configuration.',
+        code: 'OPENAI_AUTH_ERROR',
+      });
+    }
+    
+    if (error.response?.status === 400) {
+      return res.status(400).json({
+        error: `OpenAI API error: ${error.response?.data?.error?.message || error.message}`,
+        code: 'OPENAI_BAD_REQUEST',
+        details: error.response?.data,
+      });
+    }
+    
+    // Generic error
     res.status(500).json({
       error: 'Failed to generate prompt',
       code: 'GENERATION_ERROR',
-      details: error.message,
+      details: error.message || 'Unknown error occurred',
+      openaiError: error.response?.data?.error?.message || null,
     });
   }
 });
