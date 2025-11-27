@@ -84,6 +84,11 @@
       />
     </div>
 
+    <!-- Prompt Templates -->
+    <div v-if="activeTab === 'templates'" class="config-section">
+      <PromptTemplatesTab />
+    </div>
+
     <!-- Create/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal" @click.stop>
@@ -128,6 +133,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import ConfigList from './ConfigList.vue';
+import PromptTemplatesTab from './PromptTemplatesTab.vue';
 
 const loading = ref(false);
 const saving = ref(false);

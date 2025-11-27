@@ -858,8 +858,8 @@ async function enhanceTemplateWithAI() {
 }
 
 function openTemplateLibrary() {
-  // Navigate to template library page
-  window.location.href = '/admin/prompt-templates';
+  // Navigate to configuration page with templates tab
+  window.location.href = '/admin/config#templates';
 }
 
 async function generatePrompt() {
