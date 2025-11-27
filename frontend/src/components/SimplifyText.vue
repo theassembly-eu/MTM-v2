@@ -1016,6 +1016,7 @@ async function handleSimplify() {
   loading.value = true;
   error.value = null;
   simplifiedText.value = '';
+  researchSources.value = []; // Reset sources
 
   try {
     const requestData = {
@@ -1055,9 +1056,12 @@ async function handleSimplify() {
     // Store research sources if available (check both meta.sources and direct sources)
     if (researchMode.value) {
       const sources = response.data.meta?.sources || response.data.sources || [];
-      researchSources.value = sources;
+      researchSources.value = Array.isArray(sources) ? sources : [];
       researchProgress.value = '';
-      console.log('Research mode - sources found:', sources.length, sources);
+      console.log('Research mode - sources found:', researchSources.value.length, researchSources.value);
+      console.log('Full response data:', JSON.stringify(response.data, null, 2));
+    } else {
+      researchSources.value = [];
     }
 
     // Scroll to result
