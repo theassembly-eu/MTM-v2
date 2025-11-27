@@ -70,6 +70,16 @@ const requestLogSchema = new mongoose.Schema({
       type: Number,
     },
   },
+  // Research mode fields
+  researchMode: {
+    type: Boolean,
+    default: false,
+  },
+  researchSources: [{
+    url: String,
+    title: String,
+    relevanceScore: Number,
+  }],
 }, {
   timestamps: true,
 });

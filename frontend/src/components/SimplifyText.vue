@@ -371,9 +371,38 @@
         </div>
       </div>
 
+      <!-- Research Mode Toggle -->
+      <div class="optional-section">
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              v-model="researchMode" 
+              :disabled="loading"
+              class="checkbox-input"
+            />
+            <span class="checkbox-text">
+              <strong>Research Mode</strong> (Experimenteel)
+              <span class="form-hint">
+                Gebruik web research om extra context te verzamelen voor betere vereenvoudiging. Dit kan langer duren en meer kosten.
+              </span>
+            </span>
+          </label>
+        </div>
+        <div v-if="researchMode" class="research-mode-info">
+          <p class="info-text">
+            ⚠️ Research Mode zal web bronnen zoeken om extra context te verzamelen. Dit kan 30-60 seconden duren.
+          </p>
+        </div>
+      </div>
+
       <!-- Submit Button -->
       <button type="submit" :disabled="loading || !isFormValid" class="submit-button">
-        <span v-if="loading">Aan het vereenvoudigen...</span>
+        <span v-if="loading">
+          <span v-if="researchMode && researchProgress">Onderzoeken... ({{ researchProgress }})</span>
+          <span v-else-if="researchMode">Onderzoeken en vereenvoudigen...</span>
+          <span v-else>Aan het vereenvoudigen...</span>
+        </span>
         <span v-else>Vereenvoudig Tekst</span>
       </button>
 
@@ -450,6 +479,11 @@ const loadingTemplates = ref(false);
 const selectedTemplateId = ref('');
 const selectedTemplate = ref(null);
 const showTemplateLibrary = ref(false);
+
+// Research Mode
+const researchMode = ref(false);
+const researchProgress = ref('');
+const researchSources = ref([]);
 
 // AI Prompt Generator
 const showPromptGenerator = ref(false);
@@ -989,7 +1023,16 @@ async function handleSimplify() {
       requestData.customPrompt = generatedPrompt.value;
     }
 
-    const response = await axios.post('/api/simplify', requestData);
+    // Determine endpoint based on research mode
+    const endpoint = researchMode.value ? '/api/simplify/research' : '/api/simplify';
+    
+    // Set up progress tracking for research mode
+    if (researchMode.value) {
+      researchProgress.value = 'Zoeken naar bronnen...';
+      researchSources.value = [];
+    }
+
+    const response = await axios.post(endpoint, requestData);
 
     simplifiedText.value = response.data.simplifiedText;
     resultMeta.value = response.data.meta;
@@ -1337,6 +1380,94 @@ onMounted(async () => {
 .btn-cancel:hover:not(:disabled) {
   background: var(--color-bg-secondary);
   color: var(--color-text-primary);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  cursor: pointer;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-base);
+}
+
+.checkbox-label:hover {
+  background: var(--color-bg-secondary);
+}
+
+.checkbox-input {
+  margin-top: var(--spacing-1);
+  cursor: pointer;
+}
+
+.checkbox-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.research-mode-info {
+  margin-top: var(--spacing-3);
+  padding: var(--spacing-3);
+  background: var(--color-warning);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+}
+
+.info-text {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.research-sources {
+  margin-top: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.research-sources h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-3) 0;
+}
+
+.sources-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.source-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  flex: 1;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.relevance-score {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
 }
 
 .reference-checkbox {
