@@ -54,6 +54,12 @@ function buildPrompt({
   // Add LVL context
   if (lvl && lvlStyleMap[lvl.code]) {
     prompt += `Communication Level Context: ${lvlStyleMap[lvl.code]}\n\n`;
+    
+    // Add places context if available
+    if (lvl.places && lvl.places.length > 0) {
+      prompt += `Available Places for this Level: ${lvl.places.join(', ')}\n`;
+      prompt += `When relevant, use local terminology, names, and context specific to these places.\n\n`;
+    }
   }
 
   // Add target audience instruction

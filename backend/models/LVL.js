@@ -16,6 +16,10 @@ const lvlSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  places: {
+    type: [String],
+    default: [],
+  },
 }, {
   timestamps: true,
 });

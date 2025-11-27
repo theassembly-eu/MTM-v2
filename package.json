@@ -9,6 +9,7 @@
     "build": "cd frontend && npm install && vite build",
     "dev": "concurrently \"cd frontend && vite\" \"node backend/index.js\"",
     "seed": "node backend/scripts/seed.js",
+    "migrate:lvl-places": "node backend/scripts/migrate-lvl-places.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -209,6 +209,16 @@ app.post('/api/admin/seed', async (req, res) => {
   await handleSeed(req, res);
 });
 
+// Migration endpoint for LVL places
+// This allows migrating existing LVLs to include places data
+app.get('/api/admin/migrate-lvl-places', async (req, res) => {
+  await handleLvlPlacesMigration(req, res);
+});
+
+app.post('/api/admin/migrate-lvl-places', async (req, res) => {
+  await handleLvlPlacesMigration(req, res);
+});
+
 async function handleSeed(req, res) {
   try {
     // Import seed function directly
@@ -226,11 +236,52 @@ async function handleSeed(req, res) {
 
     // Seed LVLs
     const lvls = [
-      { name: 'Local', code: 'LOCAL', description: 'Gemeentelijk niveau' },
-      { name: 'Provincial', code: 'PROVINCIAL', description: 'Provinciaal niveau' },
-      { name: 'Regional', code: 'REGIONAL', description: 'Gewestelijk niveau (Vlaams Gewest, Brussels Gewest, Waals Gewest)' },
-      { name: 'Community', code: 'COMMUNITY', description: 'Gemeenschapsniveau (Vlaamse Gemeenschap, Franse Gemeenschap, Duitstalige Gemeenschap)' },
-      { name: 'Federal', code: 'FEDERAL', description: 'Federaal niveau' },
+      { 
+        name: 'Local', 
+        code: 'LOCAL', 
+        description: 'Gemeentelijk niveau',
+        places: [
+          'Antwerpen', 'Gent', 'Brugge', 'Leuven', 'Mechelen', 'Aalst', 'Kortrijk', 'Hasselt',
+          'Sint-Niklaas', 'Oostende', 'Genk', 'Roeselare', 'Geel', 'Lier', 'Turnhout',
+          'Dendermonde', 'Lokeren', 'Beveren', 'Vilvoorde', 'Mouscron', 'Waregem',
+          'Charleroi', 'Liège', 'Namur', 'Mons', 'La Louvière', 'Tournai', 'Seraing',
+          'Verviers', 'Arlon', 'Bastogne', 'Dinant', 'Huy', 'Wavre',
+          'Brussel', 'Schaarbeek', 'Anderlecht', 'Molenbeek', 'Elsene', 'Etterbeek'
+        ]
+      },
+      { 
+        name: 'Provincial', 
+        code: 'PROVINCIAL', 
+        description: 'Provinciaal niveau',
+        places: [
+          'Antwerpen', 'Oost-Vlaanderen', 'West-Vlaanderen', 'Vlaams-Brabant', 'Limburg',
+          'Henegouwen', 'Waals-Brabant', 'Luik', 'Luxemburg', 'Namen'
+        ]
+      },
+      { 
+        name: 'Regional', 
+        code: 'REGIONAL', 
+        description: 'Gewestelijk niveau (Vlaams Gewest, Brussels Gewest, Waals Gewest)',
+        places: [
+          'Vlaams Gewest', 'Brussels Gewest', 'Waals Gewest'
+        ]
+      },
+      { 
+        name: 'Community', 
+        code: 'COMMUNITY', 
+        description: 'Gemeenschapsniveau (Vlaamse Gemeenschap, Franse Gemeenschap, Duitstalige Gemeenschap)',
+        places: [
+          'Vlaamse Gemeenschap', 'Franse Gemeenschap', 'Duitstalige Gemeenschap'
+        ]
+      },
+      { 
+        name: 'Federal', 
+        code: 'FEDERAL', 
+        description: 'Federaal niveau',
+        places: [
+          'België', 'Belgium'
+        ]
+      },
     ];
 
     for (const lvlData of lvls) {
@@ -239,7 +290,14 @@ async function handleSeed(req, res) {
         await LVL.create(lvlData);
         results.push(`Created LVL: ${lvlData.name}`);
       } else {
-        results.push(`LVL already exists: ${lvlData.name}`);
+        // Update existing LVL with places if it doesn't have them
+        if (!existing.places || existing.places.length === 0) {
+          existing.places = lvlData.places || [];
+          await existing.save();
+          results.push(`Updated LVL ${lvlData.name} with places`);
+        } else {
+          results.push(`LVL already exists: ${lvlData.name}`);
+        }
       }
     }
 
@@ -324,6 +382,73 @@ async function handleSeed(req, res) {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to seed database',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
+}
+
+async function handleLvlPlacesMigration(req, res) {
+  try {
+    const LVL = (await import('./models/LVL.js')).default;
+    const results = [];
+
+    // Belgian places data
+    const placesData = {
+      LOCAL: [
+        'Antwerpen', 'Gent', 'Brugge', 'Leuven', 'Mechelen', 'Aalst', 'Kortrijk', 'Hasselt',
+        'Sint-Niklaas', 'Oostende', 'Genk', 'Roeselare', 'Geel', 'Lier', 'Turnhout',
+        'Dendermonde', 'Lokeren', 'Beveren', 'Vilvoorde', 'Mouscron', 'Waregem',
+        'Charleroi', 'Liège', 'Namur', 'Mons', 'La Louvière', 'Tournai', 'Seraing',
+        'Verviers', 'Arlon', 'Bastogne', 'Dinant', 'Huy', 'Wavre',
+        'Brussel', 'Schaarbeek', 'Anderlecht', 'Molenbeek', 'Elsene', 'Etterbeek',
+        'Sint-Jans-Molenbeek', 'Sint-Gillis', 'Jette', 'Evere', 'Ganshoren', 'Koekelberg',
+        'Sint-Agatha-Berchem', 'Sint-Joost-ten-Node', 'Oudergem', 'Sint-Pieters-Woluwe',
+        'Ukkel', 'Vorst', 'Watermaal-Bosvoorde', 'Sint-Lambrechts-Woluwe'
+      ],
+      PROVINCIAL: [
+        'Antwerpen', 'Oost-Vlaanderen', 'West-Vlaanderen', 'Vlaams-Brabant', 'Limburg',
+        'Henegouwen', 'Waals-Brabant', 'Luik', 'Luxemburg', 'Namen'
+      ],
+      REGIONAL: [
+        'Vlaams Gewest', 'Brussels Gewest', 'Waals Gewest'
+      ],
+      COMMUNITY: [
+        'Vlaamse Gemeenschap', 'Franse Gemeenschap', 'Duitstalige Gemeenschap'
+      ],
+      FEDERAL: [
+        'België', 'Belgium'
+      ]
+    };
+
+    for (const [code, places] of Object.entries(placesData)) {
+      const lvl = await LVL.findOne({ code });
+      
+      if (!lvl) {
+        results.push(`⚠️  LVL not found: ${code} - skipping`);
+        continue;
+      }
+
+      // Only update if places array is empty or doesn't exist
+      if (!lvl.places || lvl.places.length === 0) {
+        lvl.places = places;
+        await lvl.save();
+        results.push(`✓ Updated ${lvl.name} (${code}): Added ${places.length} places`);
+      } else {
+        results.push(`- ${lvl.name} (${code}) already has ${lvl.places.length} places - skipping`);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'LVL places migration completed',
+      results,
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to migrate LVL places',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });

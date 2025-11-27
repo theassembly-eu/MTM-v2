@@ -50,11 +50,52 @@ async function seed() {
     // Seed LVLs
     console.log('\nSeeding LVLs...');
     const lvls = [
-      { name: 'Local', code: 'LOCAL', description: 'Gemeentelijk niveau' },
-      { name: 'Provincial', code: 'PROVINCIAL', description: 'Provinciaal niveau' },
-      { name: 'Regional', code: 'REGIONAL', description: 'Gewestelijk niveau (Vlaams Gewest, Brussels Gewest, Waals Gewest)' },
-      { name: 'Community', code: 'COMMUNITY', description: 'Gemeenschapsniveau (Vlaamse Gemeenschap, Franse Gemeenschap, Duitstalige Gemeenschap)' },
-      { name: 'Federal', code: 'FEDERAL', description: 'Federaal niveau' },
+      { 
+        name: 'Local', 
+        code: 'LOCAL', 
+        description: 'Gemeentelijk niveau',
+        places: [
+          'Antwerpen', 'Gent', 'Brugge', 'Leuven', 'Mechelen', 'Aalst', 'Kortrijk', 'Hasselt',
+          'Sint-Niklaas', 'Oostende', 'Genk', 'Roeselare', 'Geel', 'Lier', 'Turnhout',
+          'Dendermonde', 'Lokeren', 'Beveren', 'Vilvoorde', 'Mouscron', 'Waregem',
+          'Charleroi', 'Liège', 'Namur', 'Mons', 'La Louvière', 'Tournai', 'Seraing',
+          'Verviers', 'Arlon', 'Bastogne', 'Dinant', 'Huy', 'Wavre',
+          'Brussel', 'Schaarbeek', 'Anderlecht', 'Molenbeek', 'Elsene', 'Etterbeek'
+        ]
+      },
+      { 
+        name: 'Provincial', 
+        code: 'PROVINCIAL', 
+        description: 'Provinciaal niveau',
+        places: [
+          'Antwerpen', 'Oost-Vlaanderen', 'West-Vlaanderen', 'Vlaams-Brabant', 'Limburg',
+          'Henegouwen', 'Waals-Brabant', 'Luik', 'Luxemburg', 'Namen'
+        ]
+      },
+      { 
+        name: 'Regional', 
+        code: 'REGIONAL', 
+        description: 'Gewestelijk niveau (Vlaams Gewest, Brussels Gewest, Waals Gewest)',
+        places: [
+          'Vlaams Gewest', 'Brussels Gewest', 'Waals Gewest'
+        ]
+      },
+      { 
+        name: 'Community', 
+        code: 'COMMUNITY', 
+        description: 'Gemeenschapsniveau (Vlaamse Gemeenschap, Franse Gemeenschap, Duitstalige Gemeenschap)',
+        places: [
+          'Vlaamse Gemeenschap', 'Franse Gemeenschap', 'Duitstalige Gemeenschap'
+        ]
+      },
+      { 
+        name: 'Federal', 
+        code: 'FEDERAL', 
+        description: 'Federaal niveau',
+        places: [
+          'België', 'Belgium'
+        ]
+      },
     ];
 
     for (const lvlData of lvls) {

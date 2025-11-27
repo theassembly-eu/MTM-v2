@@ -19,7 +19,7 @@ router.get('/', authenticate, async (req, res) => {
 // POST /api/lvls - Create new LVL (SUPER_ADMIN only)
 router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
-    const { name, code, description } = req.body;
+    const { name, code, description, places } = req.body;
 
     if (!name || !code) {
       return res.status(400).json({ error: 'Name and code are required' });
@@ -29,6 +29,7 @@ router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
       name,
       code: code.toUpperCase(),
       description: description || '',
+      places: places || [],
     });
 
     res.status(201).json(lvl);
@@ -38,6 +39,32 @@ router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
     }
     console.error('Error creating LVL:', error);
     res.status(500).json({ error: 'Failed to create LVL', code: 'CREATE_ERROR' });
+  }
+});
+
+// PUT /api/lvls/:id - Update LVL (SUPER_ADMIN only)
+router.put('/:id', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const { name, code, description, places } = req.body;
+    const lvl = await LVL.findById(req.params.id);
+
+    if (!lvl) {
+      return res.status(404).json({ error: 'LVL not found' });
+    }
+
+    if (name) lvl.name = name;
+    if (code) lvl.code = code.toUpperCase();
+    if (description !== undefined) lvl.description = description;
+    if (places !== undefined) lvl.places = places;
+
+    await lvl.save();
+    res.json(lvl);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'LVL with this name or code already exists' });
+    }
+    console.error('Error updating LVL:', error);
+    res.status(500).json({ error: 'Failed to update LVL', code: 'UPDATE_ERROR' });
   }
 });
 
