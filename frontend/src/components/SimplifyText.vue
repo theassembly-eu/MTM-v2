@@ -438,15 +438,6 @@
           </li>
         </ul>
       </div>
-      
-      <!-- Debug info for research mode -->
-      <div v-if="researchMode && (!researchSources || researchSources.length === 0)" class="debug-info" style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 0.875rem;">
-        <strong>Debug Info:</strong> Research mode was enabled but no sources found.
-        <br><strong>Research Mode:</strong> {{ researchMode }}
-        <br><strong>Sources Array:</strong> {{ researchSources ? JSON.stringify(researchSources) : 'null' }}
-        <br><strong>Result Meta:</strong> {{ resultMeta ? JSON.stringify(resultMeta, null, 2) : 'null' }}
-        <br><small>Check browser console (F12) for detailed logs.</small>
-      </div>
 
       <!-- Context Summary -->
       <div class="context-summary">
@@ -1068,9 +1059,6 @@ async function handleSimplify() {
       researchSources.value = Array.isArray(sources) ? sources : [];
       researchProgress.value = '';
       console.log('Research mode - sources found:', researchSources.value.length, researchSources.value);
-      console.log('Full response data:', JSON.stringify(response.data, null, 2));
-      console.log('Response meta:', response.data.meta);
-      console.log('Response meta.sources:', response.data.meta?.sources);
     } else {
       researchSources.value = [];
     }
