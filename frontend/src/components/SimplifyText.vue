@@ -6,138 +6,168 @@
     </div>
 
     <form @submit.prevent="handleSimplify" class="simplify-form">
-      <!-- Team Selection -->
-      <div class="form-group">
-        <label for="team-select">Team *</label>
-        <select 
-          id="team-select" 
-          v-model="selectedTeamId" 
-          required
-          @change="onTeamChange"
-          :disabled="loading || loadingTeams"
+      <!-- Main Section: Text Input (Prominent) -->
+      <div class="main-section">
+        <div class="text-input-section">
+          <label for="text-input" class="text-input-label">
+            <h2>Tekst om te vereenvoudigen *</h2>
+            <span class="char-count">{{ inputText.length }} karakters</span>
+          </label>
+          <textarea 
+            id="text-input"
+            v-model="inputText" 
+            placeholder="Plak of typ hier de tekst die je wilt vereenvoudigen..." 
+            rows="12" 
+            required
+            :disabled="loading"
+            class="main-textarea"
+          ></textarea>
+        </div>
+
+        <!-- Essential Settings (Compact Grid) -->
+        <div class="settings-grid">
+          <div class="form-group">
+            <label for="team-select">Team *</label>
+            <select 
+              id="team-select" 
+              v-model="selectedTeamId" 
+              required
+              @change="onTeamChange"
+              :disabled="loading || loadingTeams"
+            >
+              <option value="">Selecteer team</option>
+              <option v-for="team in availableTeams" :key="team.id" :value="team.id">
+                {{ team.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="project-select">Project *</label>
+            <select 
+              id="project-select" 
+              v-model="selectedProjectId" 
+              required
+              @change="onProjectChange"
+              :disabled="!selectedTeamId || loading || loadingProjects"
+            >
+              <option value="">Selecteer project</option>
+              <option v-for="project in availableProjects" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="lvl-select">Communicatieniveau (LVL) *</label>
+            <select 
+              id="lvl-select" 
+              v-model="selectedLvlId" 
+              required
+              :disabled="!selectedProjectId || loading || loadingLvls"
+              @change="onLvlChange"
+            >
+              <option value="">Selecteer LVL</option>
+              <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
+                {{ lvl.name }} ({{ lvl.code }})
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group" v-if="availablePlaces.length > 0">
+            <label for="place-select">Plaats</label>
+            <select 
+              id="place-select" 
+              v-model="selectedPlace" 
+              :disabled="!selectedLvlId || loading"
+            >
+              <option value="">Geen specifieke plaats</option>
+              <option v-for="place in availablePlaces" :key="place" :value="place">
+                {{ place }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="target-audience-select">Doelgroep *</label>
+            <select 
+              id="target-audience-select" 
+              v-model="selectedTargetAudienceId" 
+              required
+              :disabled="loading || loadingTargetAudiences"
+            >
+              <option value="">Selecteer doelgroep</option>
+              <option v-for="audience in targetAudiences" :key="audience.id" :value="audience.id">
+                {{ audience.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="output-format-select">Output Formaat *</label>
+            <select 
+              id="output-format-select" 
+              v-model="selectedOutputFormatId" 
+              required
+              :disabled="loading || loadingOutputFormats"
+            >
+              <option value="">Selecteer formaat</option>
+              <option v-for="format in outputFormats" :key="format.id" :value="format.id">
+                {{ format.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="language-select">Taal *</label>
+            <select 
+              id="language-select" 
+              v-model="selectedLanguageId" 
+              required
+              :disabled="loading || loadingLanguages"
+            >
+              <option value="">Selecteer taal</option>
+              <option v-for="lang in languages" :key="lang.id" :value="lang.id">
+                {{ lang.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" :disabled="loading || !isFormValid" class="submit-button">
+          <span v-if="loading">
+            <span v-if="researchMode && researchProgress">Onderzoeken... ({{ researchProgress }})</span>
+            <span v-else-if="researchMode">Onderzoeken en vereenvoudigen...</span>
+            <span v-else>Aan het vereenvoudigen...</span>
+          </span>
+          <span v-else>Vereenvoudig Tekst</span>
+        </button>
+
+        <div v-if="loading" class="loading-indicator">
+          <div class="spinner"></div>
+          <p>De tekst wordt vereenvoudigd. Dit kan even duren...</p>
+        </div>
+      </div>
+
+      <!-- Context & Enrichment Section (Collapsible) -->
+      <div class="accordion-section">
+        <button 
+          type="button" 
+          @click="showContextSection = !showContextSection"
+          class="accordion-header"
+          :class="{ 'expanded': showContextSection }"
         >
-          <option value="">Selecteer een team</option>
-          <option v-for="team in availableTeams" :key="team.id" :value="team.id">
-            {{ team.name }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Project Selection -->
-      <div class="form-group">
-        <label for="project-select">Project *</label>
-        <select 
-          id="project-select" 
-          v-model="selectedProjectId" 
-          required
-          @change="onProjectChange"
-          :disabled="!selectedTeamId || loading || loadingProjects"
-        >
-          <option value="">Selecteer eerst een team</option>
-          <option v-for="project in availableProjects" :key="project.id" :value="project.id">
-            {{ project.name }}
-          </option>
-        </select>
-      </div>
-
-      <!-- LVL Selection -->
-      <div class="form-group">
-        <label for="lvl-select">Communicatieniveau (LVL) *</label>
-        <select 
-          id="lvl-select" 
-          v-model="selectedLvlId" 
-          required
-          :disabled="!selectedProjectId || loading || loadingLvls"
-          @change="onLvlChange"
-        >
-          <option value="">Selecteer eerst een project</option>
-          <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
-            {{ lvl.name }} ({{ lvl.code }})
-          </option>
-        </select>
-      </div>
-
-      <!-- Place Selection (optional, only if LVL has places) -->
-      <div class="form-group" v-if="availablePlaces.length > 0">
-        <label for="place-select">Plaats (optioneel)</label>
-        <select 
-          id="place-select" 
-          v-model="selectedPlace" 
-          :disabled="!selectedLvlId || loading"
-        >
-          <option value="">Geen specifieke plaats</option>
-          <option v-for="place in availablePlaces" :key="place" :value="place">
-            {{ place }}
-          </option>
-        </select>
-        <small class="form-hint">Selecteer een specifieke plaats voor extra context</small>
-      </div>
-
-      <!-- Target Audience -->
-      <div class="form-group">
-        <label for="target-audience-select">Doelgroep *</label>
-        <select 
-          id="target-audience-select" 
-          v-model="selectedTargetAudienceId" 
-          required
-          :disabled="loading || loadingTargetAudiences"
-        >
-          <option value="">Selecteer doelgroep</option>
-          <option v-for="audience in targetAudiences" :key="audience.id" :value="audience.id">
-            {{ audience.name }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Output Format -->
-      <div class="form-group">
-        <label for="output-format-select">Output Formaat *</label>
-        <select 
-          id="output-format-select" 
-          v-model="selectedOutputFormatId" 
-          required
-          :disabled="loading || loadingOutputFormats"
-        >
-          <option value="">Selecteer output formaat</option>
-          <option v-for="format in outputFormats" :key="format.id" :value="format.id">
-            {{ format.name }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Language -->
-      <div class="form-group">
-        <label for="language-select">Taal *</label>
-        <select 
-          id="language-select" 
-          v-model="selectedLanguageId" 
-          required
-          :disabled="loading || loadingLanguages"
-        >
-          <option value="">Selecteer taal</option>
-          <option v-for="lang in languages" :key="lang.id" :value="lang.id">
-            {{ lang.name }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Text Input -->
-      <div class="form-group">
-        <label for="text-input">Tekst om te vereenvoudigen *</label>
-        <textarea 
-          id="text-input"
-          v-model="inputText" 
-          placeholder="Voer hier complexe tekst in..." 
-          rows="10" 
-          required
-          :disabled="loading"
-        ></textarea>
-        <div class="char-count">{{ inputText.length }} karakters</div>
-      </div>
-
-      <!-- Optional Context Fields -->
-      <div class="optional-section">
-        <h3>Optionele Context</h3>
+          <span class="accordion-title">
+            <svg class="accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+            Context & Verrijking
+          </span>
+          <span class="accordion-badge" v-if="hasContextData">{{ contextDataCount }}</span>
+        </button>
+        
+        <div v-if="showContextSection" class="accordion-content">
 
         <!-- Geographic Context -->
         <div class="form-group">
@@ -220,23 +250,54 @@
             </label>
           </div>
         </div>
+        </div>
       </div>
 
-      <!-- Prompt Templates -->
-      <div class="optional-section">
-        <div class="section-header-toggle">
-          <h3>Prompt Templates</h3>
-          <button 
-            type="button" 
-            @click="showTemplates = !showTemplates"
-            class="btn-toggle"
-            :disabled="loading"
-          >
-            {{ showTemplates ? 'Verberg' : 'Toon' }}
-          </button>
-        </div>
+      <!-- Advanced Features Section (Collapsible) -->
+      <div class="accordion-section">
+        <button 
+          type="button" 
+          @click="showAdvancedSection = !showAdvancedSection"
+          class="accordion-header"
+          :class="{ 'expanded': showAdvancedSection }"
+        >
+          <span class="accordion-title">
+            <svg class="accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+            Geavanceerde Opties
+          </span>
+          <span class="accordion-badge" v-if="hasAdvancedData">{{ advancedDataCount }}</span>
+        </button>
+        
+        <div v-if="showAdvancedSection" class="accordion-content">
+          <!-- Research Mode Toggle -->
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="researchMode" 
+                :disabled="loading"
+                class="checkbox-input"
+              />
+              <span class="checkbox-text">
+                <strong>Research Mode</strong> (Experimenteel)
+                <span class="form-hint">
+                  Gebruik web research om extra context te verzamelen voor betere vereenvoudiging. Dit kan langer duren en meer kosten.
+                </span>
+              </span>
+            </label>
+          </div>
+          <div v-if="researchMode" class="research-mode-info">
+            <p class="info-text">
+              ⚠️ Research Mode zal web bronnen zoeken om extra context te verzamelen. Dit kan 30-60 seconden duren.
+            </p>
+          </div>
 
-        <div v-if="showTemplates" class="templates-section">
+          <!-- Prompt Templates -->
+          <div class="sub-section">
+            <h4>Prompt Templates</h4>
+            <div class="templates-section">
           <div class="form-group">
             <label>Selecteer een Template</label>
             <select 
@@ -290,24 +351,12 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
 
-      <!-- AI Prompt Generator -->
-      <div class="optional-section">
-        <div class="section-header-toggle">
-          <h3>AI Prompt Generator (Experimenteel)</h3>
-          <button 
-            type="button" 
-            @click="showPromptGenerator = !showPromptGenerator"
-            class="btn-toggle"
-            :disabled="loading"
-          >
-            {{ showPromptGenerator ? 'Verberg' : 'Toon' }}
-          </button>
-        </div>
-
-        <div v-if="showPromptGenerator" class="prompt-generator">
+          <!-- AI Prompt Generator -->
+          <div class="sub-section">
+            <h4>AI Prompt Generator (Experimenteel)</h4>
+            <div class="prompt-generator">
           <div class="form-group">
             <label>Genereer een geoptimaliseerde prompt op basis van je trefwoorden en context</label>
             <p class="form-hint">
@@ -365,50 +414,12 @@
             </div>
           </div>
 
-          <div v-if="promptError" class="error-message">
-            {{ promptError }}
+            <div v-if="promptError" class="error-message">
+              {{ promptError }}
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- Research Mode Toggle -->
-      <div class="optional-section">
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input 
-              type="checkbox" 
-              v-model="researchMode" 
-              :disabled="loading"
-              class="checkbox-input"
-            />
-            <span class="checkbox-text">
-              <strong>Research Mode</strong> (Experimenteel)
-              <span class="form-hint">
-                Gebruik web research om extra context te verzamelen voor betere vereenvoudiging. Dit kan langer duren en meer kosten.
-              </span>
-            </span>
-          </label>
         </div>
-        <div v-if="researchMode" class="research-mode-info">
-          <p class="info-text">
-            ⚠️ Research Mode zal web bronnen zoeken om extra context te verzamelen. Dit kan 30-60 seconden duren.
-          </p>
-        </div>
-      </div>
-
-      <!-- Submit Button -->
-      <button type="submit" :disabled="loading || !isFormValid" class="submit-button">
-        <span v-if="loading">
-          <span v-if="researchMode && researchProgress">Onderzoeken... ({{ researchProgress }})</span>
-          <span v-else-if="researchMode">Onderzoeken en vereenvoudigen...</span>
-          <span v-else>Aan het vereenvoudigen...</span>
-        </span>
-        <span v-else>Vereenvoudig Tekst</span>
-      </button>
-
-      <div v-if="loading" class="loading-indicator">
-        <div class="spinner"></div>
-        <p>De tekst wordt vereenvoudigd. Dit kan even duren...</p>
       </div>
     </form>
 
@@ -487,8 +498,11 @@ const newIncludeKeyword = ref('');
 const newAvoidKeyword = ref('');
 const selectedReferenceIds = ref([]);
 
+// Accordion sections
+const showContextSection = ref(false);
+const showAdvancedSection = ref(false);
+
 // Prompt Templates
-const showTemplates = ref(false);
 const templates = ref([]);
 const loadingTemplates = ref(false);
 const selectedTemplateId = ref('');
@@ -501,7 +515,6 @@ const researchProgress = ref('');
 const researchSources = ref([]);
 
 // AI Prompt Generator
-const showPromptGenerator = ref(false);
 const generatingPrompt = ref(false);
 const generatedPrompt = ref('');
 const promptExplanation = ref('');
@@ -867,8 +880,8 @@ function useTemplatePrompt() {
     console.error('Error recording template usage:', err);
   });
   
-  // Scroll to prompt generator section
-  showPromptGenerator.value = true;
+  // Scroll to advanced section and expand it
+  showAdvancedSection.value = true;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1222,6 +1235,145 @@ onMounted(async () => {
   color: var(--color-text-tertiary);
   margin-top: var(--spacing-2);
   text-align: right;
+}
+
+/* Main Section */
+.main-section {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.text-input-section {
+  margin-bottom: var(--spacing-6);
+}
+
+.text-input-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.text-input-label h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.main-textarea {
+  width: 100%;
+  min-height: 300px;
+  padding: var(--spacing-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-relaxed);
+  resize: vertical;
+  transition: border-color var(--transition-base);
+}
+
+.main-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+/* Accordion Sections */
+.accordion-section {
+  margin-bottom: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-primary);
+  overflow: hidden;
+}
+
+.accordion-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-4) var(--spacing-6);
+  background: var(--color-bg-secondary);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-align: left;
+}
+
+.accordion-header:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.accordion-header.expanded {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.accordion-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.accordion-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform var(--transition-base);
+}
+
+.accordion-header.expanded .accordion-icon {
+  transform: rotate(180deg);
+}
+
+.accordion-badge {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  min-width: 24px;
+  text-align: center;
+}
+
+.accordion-content {
+  padding: var(--spacing-6);
+}
+
+.sub-section {
+  margin-bottom: var(--spacing-6);
+  padding-bottom: var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sub-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sub-section h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
 }
 
 .optional-section {
