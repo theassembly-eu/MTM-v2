@@ -11,7 +11,9 @@
         <div class="text-input-section">
           <label for="text-input" class="text-input-label">
             <h2>Tekst om te vereenvoudigen *</h2>
-            <span class="char-count">{{ inputText.length }} karakters</span>
+            <span class="char-count" :class="{ 'char-count-warning': inputText.length > 45000, 'char-count-error': inputText.length > 50000 }">
+              {{ inputText.length.toLocaleString('nl-NL') }} / 50.000 karakters
+            </span>
           </label>
           <textarea 
             id="text-input"
@@ -21,7 +23,14 @@
             required
             :disabled="loading"
             class="main-textarea"
+            maxlength="50000"
+            aria-label="Tekst om te vereenvoudigen"
+            aria-required="true"
+            aria-describedby="text-input-hint"
           ></textarea>
+          <p id="text-input-hint" class="input-hint">
+            Maximum 50.000 karakters. Voor langere teksten, deel deze op in kleinere delen.
+          </p>
         </div>
 
         <!-- Essential Settings (Compact Grid) -->
@@ -34,6 +43,8 @@
               required
               @change="onTeamChange"
               :disabled="loading || loadingTeams"
+              aria-label="Selecteer team"
+              aria-required="true"
             >
               <option value="">Selecteer team</option>
               <option v-for="team in availableTeams" :key="team.id" :value="team.id">
@@ -82,6 +93,8 @@
               required
               @change="onProjectChange"
               :disabled="!selectedTeamId || loading || loadingProjects"
+              aria-label="Selecteer project"
+              aria-required="true"
             >
               <option value="">Selecteer project</option>
               <option v-for="project in availableProjects" :key="project.id" :value="project.id">
@@ -98,6 +111,8 @@
               required
               :disabled="!selectedProjectId || loading || loadingLvls"
               @change="onLvlChange"
+              aria-label="Selecteer communicatieniveau"
+              aria-required="true"
             >
               <option value="">Selecteer LVL</option>
               <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
@@ -508,6 +523,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../composables/useAuth.js';
+import DOMPurify from 'dompurify';
 
 const { user, userTeams } = useAuth();
 
@@ -697,13 +713,24 @@ const hasMultipleTemplates = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  return selectedTeamId.value && 
+  const hasRequiredFields = selectedTeamId.value && 
          selectedProjectId.value && 
          selectedLvlId.value && 
          selectedTargetAudienceId.value && 
          selectedOutputFormatId.value && 
-         selectedLanguageId.value && 
-         inputText.value.trim().length > 0;
+         selectedLanguageId.value;
+  
+  const hasValidText = inputText.value.trim().length > 0 && 
+                       inputText.value.trim().length <= 50000;
+  
+  return hasRequiredFields && hasValidText;
+});
+
+const textLengthError = computed(() => {
+  if (inputText.value.length > 50000) {
+    return 'Tekst is te lang. Maximum 50.000 karakters toegestaan.';
+  }
+  return null;
 });
 
 const selectedTeamName = computed(() => {
@@ -1134,15 +1161,27 @@ function removeAvoidKeyword(index) {
 }
 
 function formatSimplifiedText(text) {
+  if (!text) return '';
+  
   // Replace line breaks with <br> and preserve --- separators
-  return text
+  let formatted = text
     .replace(/\n/g, '<br>')
     .replace(/---/g, '<hr class="separator">');
+  
+  // Sanitize HTML to prevent XSS attacks
+  return DOMPurify.sanitize(formatted, {
+    ALLOWED_TAGS: ['br', 'hr', 'p', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+    ALLOWED_ATTR: ['class'],
+  });
 }
 
 async function handleSimplify() {
   if (!isFormValid.value) {
-    error.value = 'Vul alle verplichte velden in';
+    if (textLengthError.value) {
+      error.value = textLengthError.value;
+    } else {
+      error.value = 'Vul alle verplichte velden in';
+    }
     return;
   }
 
@@ -1208,9 +1247,22 @@ async function handleSimplify() {
     }, 100);
   } catch (err) {
     console.error('Error simplifying text:', err);
-    error.value = err.response?.data?.error || 'Fout bij het vereenvoudigen van de tekst. Probeer het opnieuw.';
+    
+    // User-friendly error messages without exposing internal details
     if (err.response?.status === 429) {
       error.value = 'Te veel verzoeken. Wacht even en probeer het later opnieuw.';
+    } else if (err.response?.status === 400) {
+      error.value = err.response?.data?.error || 'Ongeldige invoer. Controleer alle velden en probeer het opnieuw.';
+    } else if (err.response?.status === 401 || err.response?.status === 403) {
+      error.value = 'Je hebt geen toestemming voor deze actie. Log opnieuw in als dit probleem aanhoudt.';
+    } else if (err.response?.status === 404) {
+      error.value = 'De gevraagde resource is niet gevonden. Controleer je selecties en probeer het opnieuw.';
+    } else if (err.response?.status >= 500) {
+      error.value = 'Er is een serverfout opgetreden. Probeer het later opnieuw.';
+    } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+      error.value = 'Geen verbinding met de server. Controleer je internetverbinding.';
+    } else {
+      error.value = 'Er is een fout opgetreden bij het vereenvoudigen van de tekst. Probeer het opnieuw.';
     }
   } finally {
     loading.value = false;
