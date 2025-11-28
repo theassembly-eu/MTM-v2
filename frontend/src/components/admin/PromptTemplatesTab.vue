@@ -362,6 +362,17 @@ async function fetchProjects() {
   }
 }
 
+async function fetchSystemTemplates() {
+  try {
+    const response = await axios.get('/api/system-prompt-templates');
+    systemTemplates.value = response.data.filter(t => t.isActive !== false);
+    console.log('Fetched system templates:', systemTemplates.value.length);
+  } catch (err) {
+    console.error('Error fetching system templates:', err);
+    error.value = err.response?.data?.error || 'Fout bij ophalen system templates';
+  }
+}
+
 function onScopeChange() {
   if (formData.value.scope === 'GLOBAL') {
     formData.value.teamId = '';
