@@ -620,8 +620,18 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
         dictionaryTerms,
         projectName: project.name,
       });
+      
+      if (!promptResult || !promptResult.prompt) {
+        throw new Error('Failed to build prompt: buildPrompt returned invalid result');
+      }
+      
       prompt = promptResult.prompt;
-      promptSections = promptResult.sections;
+      promptSections = promptResult.sections || [];
+    }
+
+    // Validate prompt was created
+    if (!prompt || typeof prompt !== 'string') {
+      throw new Error('Invalid prompt: prompt is not a valid string');
     }
 
     // Truncate if needed
@@ -658,7 +668,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     const usage = completion.usage || {};
 
     // Create request log
-    const requestLog = await RequestLog.create({
+    const logData = {
       user: req.user.id,
       team: teamId,
       project: projectId,
@@ -678,8 +688,14 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
       },
-      promptMeta: promptMeta,
-    });
+    };
+    
+    // Add promptMeta only if it's valid
+    if (promptMeta && promptMeta.sectionsIncluded) {
+      logData.promptMeta = promptMeta;
+    }
+    
+    const requestLog = await RequestLog.create(logData);
 
     // Return result
     res.json({
@@ -699,6 +715,12 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     });
   } catch (error) {
     console.error('Error simplifying text:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+    });
     
     // Try fallback to base prompt if enriched prompt fails
     if (error.message?.includes('token') || error.status === 400) {
@@ -706,12 +728,14 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       return res.status(500).json({
         error: 'Failed to simplify text. Prompt may be too long.',
         code: 'PROMPT_ERROR',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       });
     }
 
     res.status(500).json({
       error: 'Failed to simplify text',
       code: 'SIMPLIFY_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });
@@ -972,8 +996,18 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
         dictionaryTerms,
         projectName: project.name,
       });
+      
+      if (!promptResult || !promptResult.prompt) {
+        throw new Error('Failed to build prompt: buildPrompt returned invalid result');
+      }
+      
       prompt = promptResult.prompt;
-      promptSections = promptResult.sections;
+      promptSections = promptResult.sections || [];
+    }
+
+    // Validate prompt was created
+    if (!prompt || typeof prompt !== 'string') {
+      throw new Error('Invalid prompt: prompt is not a valid string');
     }
 
     // Add research context to prompt
@@ -1022,7 +1056,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
     }
 
     // Log the request
-    await RequestLog.create({
+    const logData = {
       user: req.user.id,
       team: teamId,
       project: projectId,
@@ -1048,8 +1082,14 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
         url: s.url,
         title: s.title,
       })),
-      promptMeta: promptMeta,
-    });
+    };
+    
+    // Add promptMeta only if it's valid
+    if (promptMeta && promptMeta.sectionsIncluded) {
+      logData.promptMeta = promptMeta;
+    }
+    
+    await RequestLog.create(logData);
 
     res.json({
       simplifiedText,
@@ -1069,10 +1109,16 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
     });
   } catch (error) {
     console.error('Error in research mode:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+    });
     res.status(500).json({
       error: 'Failed to simplify text with research',
       code: 'RESEARCH_ERROR',
-      details: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });

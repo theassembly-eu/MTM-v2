@@ -80,11 +80,17 @@ const requestLogSchema = new mongoose.Schema({
     title: String,
     relevanceScore: Number,
   }],
-  // Prompt observability fields
+  // Prompt observability fields (optional)
   promptMeta: {
     sectionsIncluded: [{
-      type: String, // 'role', 'lvlContext', 'targetAudience', 'outputFormat', etc.
-      included: Boolean,
+      type: {
+        type: String, // 'role', 'lvlContext', 'targetAudience', 'outputFormat', etc.
+        required: true,
+      },
+      included: {
+        type: Boolean,
+        required: true,
+      },
     }],
     promptLength: Number,
     estimatedTokens: Number,
