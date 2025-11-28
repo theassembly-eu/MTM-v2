@@ -1,5 +1,7 @@
 import express from 'express';
 import PromptTemplate from '../models/PromptTemplate.js';
+import SystemPromptTemplate from '../models/SystemPromptTemplate.js';
+import { assemblePromptTemplate } from '../utils/assemblePromptTemplate.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole, requireRoleOrHigher } from '../middleware/roles.js';
 
@@ -103,10 +105,48 @@ router.get('/:id', authenticate, async (req, res) => {
 // POST /api/prompt-templates - Create new template
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { name, description, prompt, teamId, projectId, scope, context } = req.body;
+    const { 
+      name, 
+      description, 
+      prompt, 
+      teamId, 
+      projectId, 
+      scope, 
+      context,
+      useComponents,
+      componentReferences,
+    } = req.body;
 
-    if (!name || !prompt) {
-      return res.status(400).json({ error: 'Name and prompt are required' });
+    // Validate: either prompt or componentReferences must be provided
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    if (!useComponents && !prompt) {
+      return res.status(400).json({ error: 'Either prompt or componentReferences is required' });
+    }
+
+    if (useComponents && (!componentReferences || componentReferences.length === 0)) {
+      return res.status(400).json({ error: 'componentReferences is required when useComponents is true' });
+    }
+
+    // Validate component references if using components
+    if (useComponents && componentReferences) {
+      const systemTemplateIds = componentReferences.map(ref => ref.systemTemplateId);
+      const systemTemplates = await SystemPromptTemplate.find({
+        _id: { $in: systemTemplateIds },
+      });
+
+      if (systemTemplates.length !== systemTemplateIds.length) {
+        return res.status(400).json({ error: 'One or more system template IDs are invalid' });
+      }
+
+      // Validate that component references have required fields
+      for (const ref of componentReferences) {
+        if (!ref.systemTemplateId || ref.order === undefined) {
+          return res.status(400).json({ error: 'Each component reference must have systemTemplateId and order' });
+        }
+      }
     }
 
     // Determine scope
@@ -148,10 +188,31 @@ router.post('/', authenticate, async (req, res) => {
       finalProjectId = null;
     }
 
+    // Prepare component references with denormalized names
+    let processedComponentReferences = null;
+    if (useComponents && componentReferences) {
+      const systemTemplateIds = componentReferences.map(ref => ref.systemTemplateId);
+      const systemTemplates = await SystemPromptTemplate.find({
+        _id: { $in: systemTemplateIds },
+      });
+      
+      const templateMap = new Map();
+      systemTemplates.forEach(t => templateMap.set(t._id.toString(), t));
+
+      processedComponentReferences = componentReferences.map(ref => ({
+        systemTemplateId: ref.systemTemplateId,
+        systemTemplateName: templateMap.get(ref.systemTemplateId.toString())?.name || 'Unknown',
+        order: ref.order,
+        enabled: ref.enabled !== false, // Default to true
+      }));
+    }
+
     const template = await PromptTemplate.create({
       name,
       description: description || '',
-      prompt,
+      prompt: prompt || '', // Can be empty if using components
+      useComponents: useComponents || false,
+      componentReferences: processedComponentReferences || [],
       createdBy: req.user.id,
       team: finalTeamId,
       project: finalProjectId,
@@ -208,7 +269,44 @@ router.put('/:id', authenticate, async (req, res) => {
 
     if (name) template.name = name;
     if (description !== undefined) template.description = description;
-    if (prompt) template.prompt = prompt;
+    
+    // Handle component-based vs full-text updates
+    if (useComponents !== undefined) {
+      template.useComponents = useComponents;
+      
+      if (useComponents && componentReferences) {
+        // Validate component references
+        const systemTemplateIds = componentReferences.map(ref => ref.systemTemplateId);
+        const systemTemplates = await SystemPromptTemplate.find({
+          _id: { $in: systemTemplateIds },
+        });
+
+        if (systemTemplates.length !== systemTemplateIds.length) {
+          return res.status(400).json({ error: 'One or more system template IDs are invalid' });
+        }
+
+        // Process component references
+        const templateMap = new Map();
+        systemTemplates.forEach(t => templateMap.set(t._id.toString(), t));
+
+        template.componentReferences = componentReferences.map(ref => ({
+          systemTemplateId: ref.systemTemplateId,
+          systemTemplateName: templateMap.get(ref.systemTemplateId.toString())?.name || 'Unknown',
+          order: ref.order,
+          enabled: ref.enabled !== false,
+        }));
+      } else if (!useComponents) {
+        // Clear component references when switching to full-text
+        template.componentReferences = [];
+      }
+    }
+    
+    if (prompt !== undefined) {
+      // Only update prompt if not using components, or if explicitly provided
+      if (!template.useComponents || prompt) {
+        template.prompt = prompt;
+      }
+    }
 
     await template.save();
 
@@ -282,6 +380,38 @@ router.post('/:id/use', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error recording template usage:', error);
     res.status(500).json({ error: 'Failed to record usage', code: 'USAGE_ERROR' });
+  }
+});
+
+// POST /api/prompt-templates/:id/preview - Preview assembled prompt
+router.post('/:id/preview', authenticate, async (req, res) => {
+  try {
+    const template = await PromptTemplate.findById(req.params.id)
+      .populate('componentReferences.systemTemplateId');
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Prompt template not found' });
+    }
+
+    // Check permissions (same as GET)
+    if (template.scope === 'GLOBAL' && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Not authorized to view global templates' });
+    }
+
+    // Get context from request body (for variable resolution)
+    const context = req.body.context || {};
+
+    // Assemble the prompt
+    const result = await assemblePromptTemplate(template, context);
+
+    res.json({
+      prompt: result.prompt,
+      source: result.source,
+      componentsUsed: result.componentsUsed,
+    });
+  } catch (error) {
+    console.error('Error previewing template:', error);
+    res.status(500).json({ error: 'Failed to preview template', code: 'PREVIEW_ERROR' });
   }
 });
 

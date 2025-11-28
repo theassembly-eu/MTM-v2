@@ -9,10 +9,36 @@ const promptTemplateSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // Full prompt text (for backward compatibility and manual templates)
   prompt: {
     type: String,
-    required: true,
+    default: '',
   },
+  // Component-based template flag
+  useComponents: {
+    type: Boolean,
+    default: false,
+  },
+  // References to System Template components (when useComponents is true)
+  componentReferences: [{
+    systemTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SystemPromptTemplate',
+      required: true,
+    },
+    systemTemplateName: {
+      type: String, // Denormalized for easier queries
+      required: true,
+    },
+    order: {
+      type: Number,
+      required: true, // Order in which components should be assembled
+    },
+    enabled: {
+      type: Boolean,
+      default: true, // Can disable a component without removing it
+    },
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
