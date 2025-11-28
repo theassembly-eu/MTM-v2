@@ -100,7 +100,7 @@ function buildPrompt({
   // Add output format instruction
   if (outputFormat) {
     let formatInstruction = '';
-    let imageSuggestion = '';
+    let requiresImageSuggestion = false;
     let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
 
     // Use description from database if available, otherwise fall back to hardcoded values
@@ -114,7 +114,7 @@ function buildPrompt({
           break;
         case 'Korte versie (Instagram-achtig)':
           formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
-          imageSuggestion = '\nSuggest a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian.';
+          requiresImageSuggestion = true;
           break;
         case 'Medium versie (LinkedIn-achtig)':
           formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
@@ -129,8 +129,7 @@ function buildPrompt({
     // Handle format-specific behaviors (these are still based on format name)
     // These are behavioral rules, not just instructions
     if (outputFormat.name === 'Korte versie (Instagram-achtig)') {
-      // Always add image suggestion for Instagram format, make it explicit
-      imageSuggestion = '\n\nIMPORTANT: After providing the simplified text, you MUST also provide an "Image Suggestion" section with a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian. Format it as:\n---\nImage Suggestion: [your description here]';
+      requiresImageSuggestion = true;
     }
     
     if (outputFormat.name === 'Opsommingstekens') {
@@ -139,8 +138,10 @@ function buildPrompt({
 
     prompt += `Output Format: ${formatInstruction}\n`;
     if (listAvoidance) prompt += `${listAvoidance}\n`;
-    if (imageSuggestion) prompt += imageSuggestion;
     prompt += '\n';
+    
+    // Store flag for later use in structured output
+    outputFormat.requiresImageSuggestion = requiresImageSuggestion;
   }
 
   // Add geographic context
@@ -183,8 +184,24 @@ function buildPrompt({
   // Add base instructions
   prompt += `Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone. ABSOLUTELY AVOID technical terms; if a technical term is unavoidable, rephrase it in simple language.\n\n`;
 
-  // Add structure
-  prompt += `Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n---\nEmotional Core Message: Start with a strong, emotional core message about people.\n---\nProblem Statement: Name the problem briefly and clearly.\n---\nConcluding Message: Conclude with a clear, impactful message.\n---\n${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.\n\n`;
+  // Add structure - dynamically include image suggestion if required
+  let structureParts = [
+    'Emotional Core Message: Start with a strong, emotional core message about people.',
+    'Problem Statement: Name the problem briefly and clearly.',
+    'Concluding Message: Conclude with a clear, impactful message.',
+    `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
+  ];
+  
+  // Add image suggestion section if required by output format
+  if (outputFormat?.requiresImageSuggestion) {
+    structureParts.push('Image Suggestion: Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This is a REQUIRED section.');
+  }
+  
+  prompt += `Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n`;
+  structureParts.forEach(part => {
+    prompt += `---\n${part}\n`;
+  });
+  prompt += '\n';
 
   // Add the text to simplify
   prompt += `Please simplify the following ${language.name} text and respond in ${language.name}. Ensure the tone is strongly connotated and impactful.\n\n"${text}"`;
