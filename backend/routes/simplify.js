@@ -1021,35 +1021,11 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     if (promptMeta && promptMeta.sectionsIncluded) {
       logData.promptMeta = {
         ...promptMeta,
-        source: promptResult.source || 'hardcoded', // Track if templates were used
-      };
-    }
-    
-    // Add A/B test info if present (store first test found)
-    if (promptResult.abTestAssignments && Object.keys(promptResult.abTestAssignments).length > 0) {
-      const firstTest = Object.values(promptResult.abTestAssignments)[0];
-      logData.abTestInfo = {
-        testId: firstTest.testId,
-        templateName: Object.keys(promptResult.abTestAssignments)[0],
-        variant: firstTest.variant,
-        version: firstTest.version,
+        source: promptSource, // Track if templates were used
       };
     }
     
     const requestLog = await RequestLog.create(logData);
-
-    // Update A/B test results asynchronously (don't block response)
-    if (promptResult.abTestAssignments && Object.keys(promptResult.abTestAssignments).length > 0) {
-      // Update all tests that were used
-      updateABTestResults(promptResult.abTestAssignments, {
-        tokens: usage.total_tokens || 0,
-        responseTime: responseTime,
-        requestId: requestLog._id,
-      }).catch(err => {
-        console.error('Error updating A/B test results:', err);
-        // Don't fail the request if A/B test update fails
-      });
-    }
 
     // Return result
     res.json({
@@ -1379,6 +1355,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
 
         // Track that we used a template
         promptSections = [{ type: 'template', included: true, templateId: templateId, source: assembledResult.source }];
+        promptSource = 'template';
 
         // Record template usage
         promptTemplate.usageCount = (promptTemplate.usageCount || 0) + 1;
@@ -1403,6 +1380,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       }
       // For custom prompts, we don't track sections (they're custom)
       promptSections = [{ type: 'custom', included: true }];
+      promptSource = 'custom';
     }
     
     // If neither template nor custom prompt, build standard prompt
@@ -1429,6 +1407,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       
       prompt = promptResult.prompt;
       promptSections = promptResult.sections || [];
+      promptSource = promptResult.source || 'hardcoded';
     }
 
     // Validate prompt was created
@@ -1514,7 +1493,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       if (promptMeta && promptMeta.sectionsIncluded) {
         logData.promptMeta = {
           ...promptMeta,
-          source: promptResult.source || 'hardcoded', // Track if templates were used
+          source: promptSource, // Track if templates were used
         };
       }
     
