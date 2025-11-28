@@ -183,6 +183,12 @@ function buildOutputFormatSection(outputFormat) {
   if (listAvoidance) {
     section += `${listAvoidance}\n`;
   }
+  
+  // Add explicit reminder about image suggestion if required
+  if (requiresImageSuggestion) {
+    section += `\nIMPORTANT: This format REQUIRES an "Image Suggestion" section. You MUST include this section in your response after the simplified text. This is mandatory, not optional.\n\n`;
+  }
+  
   section += '\n';
   
   return { section, requiresImageSuggestion };
@@ -294,7 +300,7 @@ function buildOutputStructureSection(outputFormat, requiresImageSuggestion) {
   
   // Add image suggestion section if required by output format
   if (requiresImageSuggestion) {
-    structureParts.push('Image Suggestion: Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This is a REQUIRED section.');
+    structureParts.push('Image Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]');
   }
   
   let section = `Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n`;
@@ -303,6 +309,11 @@ function buildOutputStructureSection(outputFormat, requiresImageSuggestion) {
   });
   section += '\n';
   
+  // Add explicit reminder if image suggestion is required
+  if (requiresImageSuggestion) {
+    section += `CRITICAL REMINDER: You MUST include the "Image Suggestion" section in your response. This is a mandatory requirement. Do not skip this section.\n\n`;
+  }
+  
   return section;
 }
 
@@ -310,10 +321,19 @@ function buildOutputStructureSection(outputFormat, requiresImageSuggestion) {
  * Build content section (text to simplify)
  * @param {string} text - Text to simplify
  * @param {Object} language - Language object with name property
+ * @param {boolean} requiresImageSuggestion - Whether image suggestion is required
  * @returns {string} Content prompt section
  */
-function buildContentSection(text, language) {
-  return `Please simplify the following ${language.name} text and respond in ${language.name}. Ensure the tone is strongly connotated and impactful.\n\n"${text}"`;
+function buildContentSection(text, language, requiresImageSuggestion = false) {
+  let section = `Please simplify the following ${language.name} text and respond in ${language.name}. Ensure the tone is strongly connotated and impactful.\n\n`;
+  
+  if (requiresImageSuggestion) {
+    section += `REMINDER: Remember to include the "Image Suggestion" section in your response. This is a mandatory requirement.\n\n`;
+  }
+  
+  section += `"${text}"`;
+  
+  return section;
 }
 
 // ============================================================================
@@ -382,7 +402,7 @@ function buildPrompt({
   prompt += buildOutputStructureSection(outputFormat, formatSection.requiresImageSuggestion);
   
   // 12. Content (text to simplify)
-  prompt += buildContentSection(text, language);
+  prompt += buildContentSection(text, language, formatSection.requiresImageSuggestion);
   
   return prompt;
 }
