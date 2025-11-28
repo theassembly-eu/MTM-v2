@@ -95,6 +95,17 @@ const requestLogSchema = new mongoose.Schema({
     promptLength: Number,
     estimatedTokens: Number,
     sanitizedPrompt: String, // Sanitized version for debugging (truncated, no sensitive data)
+    source: String, // 'templates' or 'hardcoded'
+  },
+  // A/B test information (if request was part of an A/B test)
+  abTestInfo: {
+    testId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ABTest',
+    },
+    templateName: String,
+    variant: String, // 'A' or 'B'
+    version: String, // Template version used
   },
 }, {
   timestamps: true,

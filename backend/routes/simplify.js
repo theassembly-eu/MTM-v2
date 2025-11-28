@@ -943,18 +943,28 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     
     // Add promptMeta only if it's valid
     if (promptMeta && promptMeta.sectionsIncluded) {
-      logData.promptMeta = promptMeta;
+      logData.promptMeta = {
+        ...promptMeta,
+        source: promptResult.source || 'hardcoded', // Track if templates were used
+      };
     }
     
-    // Add A/B test info if present
+    // Add A/B test info if present (store first test found)
     if (promptResult.abTestAssignments && Object.keys(promptResult.abTestAssignments).length > 0) {
-      logData.abTestInfo = promptResult.abTestAssignments;
+      const firstTest = Object.values(promptResult.abTestAssignments)[0];
+      logData.abTestInfo = {
+        testId: firstTest.testId,
+        templateName: Object.keys(promptResult.abTestAssignments)[0],
+        variant: firstTest.variant,
+        version: firstTest.version,
+      };
     }
     
     const requestLog = await RequestLog.create(logData);
 
     // Update A/B test results asynchronously (don't block response)
     if (promptResult.abTestAssignments && Object.keys(promptResult.abTestAssignments).length > 0) {
+      // Update all tests that were used
       updateABTestResults(promptResult.abTestAssignments, {
         tokens: usage.total_tokens || 0,
         responseTime: responseTime,
@@ -1352,10 +1362,13 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       })),
     };
     
-    // Add promptMeta only if it's valid
-    if (promptMeta && promptMeta.sectionsIncluded) {
-      logData.promptMeta = promptMeta;
-    }
+      // Add promptMeta only if it's valid
+      if (promptMeta && promptMeta.sectionsIncluded) {
+        logData.promptMeta = {
+          ...promptMeta,
+          source: promptResult.source || 'hardcoded', // Track if templates were used
+        };
+      }
     
     await RequestLog.create(logData);
 

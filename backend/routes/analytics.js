@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import Team from '../models/Team.js';
 import Project from '../models/Project.js';
 import LVL from '../models/LVL.js';
+import SystemPromptTemplate from '../models/SystemPromptTemplate.js';
+import ABTest from '../models/ABTest.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roles.js';
 
@@ -363,6 +365,144 @@ router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
       { $sort: { totalTokens: -1 } },
     ]);
 
+    // PROMPT ANALYTICS: Template Usage (from promptMeta.source)
+    const templateUsage = await RequestLog.aggregate([
+      { $match: { ...dateFilter, 'promptMeta.source': { $exists: true } } },
+      {
+        $group: {
+          _id: '$promptMeta.source',
+          count: { $sum: 1 },
+          avgTokens: { $avg: '$modelMeta.totalTokens' },
+          avgPromptLength: { $avg: '$promptMeta.promptLength' },
+        },
+      },
+      {
+        $project: {
+          source: '$_id',
+          count: 1,
+          avgTokens: { $ifNull: ['$avgTokens', 0] },
+          avgPromptLength: { $ifNull: ['$avgPromptLength', 0] },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    // PROMPT ANALYTICS: Prompt Section Usage
+    const sectionUsage = await RequestLog.aggregate([
+      { $match: { ...dateFilter, 'promptMeta.sectionsIncluded': { $exists: true, $ne: [] } } },
+      { $unwind: '$promptMeta.sectionsIncluded' },
+      {
+        $group: {
+          _id: {
+            sectionType: '$promptMeta.sectionsIncluded.type',
+            included: '$promptMeta.sectionsIncluded.included',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.sectionType',
+          total: { $sum: '$count' },
+          included: {
+            $sum: {
+              $cond: [{ $eq: ['$_id.included', true] }, '$count', 0],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          sectionType: '$_id',
+          total: 1,
+          included: 1,
+          inclusionRate: { $multiply: [{ $divide: ['$included', '$total'] }, 100] },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]);
+
+    // PROMPT ANALYTICS: A/B Test Participation
+    const abTestParticipation = await RequestLog.aggregate([
+      { $match: { ...dateFilter, 'abTestInfo.testId': { $exists: true } } },
+      {
+        $group: {
+          _id: '$abTestInfo.testId',
+          count: { $sum: 1 },
+          variantA: {
+            $sum: { $cond: [{ $eq: ['$abTestInfo.variant', 'A'] }, 1, 0] },
+          },
+          variantB: {
+            $sum: { $cond: [{ $eq: ['$abTestInfo.variant', 'B'] }, 1, 0] },
+          },
+          avgTokens: { $avg: '$modelMeta.totalTokens' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'abtests',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'testData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$testData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          testId: '$_id',
+          testName: { $ifNull: ['$testData.name', 'Unknown'] },
+          templateName: { $ifNull: ['$testData.templateName', 'Unknown'] },
+          count: 1,
+          variantA: 1,
+          variantB: 1,
+          avgTokens: { $ifNull: ['$avgTokens', 0] },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // PROMPT ANALYTICS: Template Version Performance (if using templates)
+    const templateVersionPerformance = await RequestLog.aggregate([
+      { 
+        $match: { 
+          ...dateFilter, 
+          'promptMeta.source': 'templates',
+          'promptMeta.sectionsIncluded': { $exists: true },
+        } 
+      },
+      { $unwind: '$promptMeta.sectionsIncluded' },
+      {
+        $match: {
+          'promptMeta.sectionsIncluded.type': { $in: ['role', 'lvlContext', 'outputFormat', 'content'] },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            sectionType: '$promptMeta.sectionsIncluded.type',
+            included: '$promptMeta.sectionsIncluded.included',
+          },
+          count: { $sum: 1 },
+          avgTokens: { $avg: '$modelMeta.totalTokens' },
+        },
+      },
+      {
+        $project: {
+          sectionType: '$_id.sectionType',
+          included: '$_id.included',
+          count: 1,
+          avgTokens: { $ifNull: ['$avgTokens', 0] },
+        },
+      },
+      { $sort: { sectionType: 1, included: -1 } },
+    ]);
+
     res.json({
       summary: {
         totalRequests,
@@ -433,6 +573,33 @@ router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
           totalTokens: item.totalTokens,
           avgTokens: Math.round(item.avgTokens || 0),
           count: item.count,
+        })),
+        templateUsage: templateUsage.map(item => ({
+          source: item.source,
+          count: item.count,
+          avgTokens: Math.round(item.avgTokens || 0),
+          avgPromptLength: Math.round(item.avgPromptLength || 0),
+        })),
+        sectionUsage: sectionUsage.map(item => ({
+          sectionType: item.sectionType,
+          total: item.total,
+          included: item.included,
+          inclusionRate: Math.round(item.inclusionRate || 0),
+        })),
+        abTestParticipation: abTestParticipation.map(item => ({
+          testId: item.testId?.toString(),
+          testName: item.testName,
+          templateName: item.templateName,
+          count: item.count,
+          variantA: item.variantA,
+          variantB: item.variantB,
+          avgTokens: Math.round(item.avgTokens || 0),
+        })),
+        templateVersionPerformance: templateVersionPerformance.map(item => ({
+          sectionType: item.sectionType,
+          included: item.included,
+          count: item.count,
+          avgTokens: Math.round(item.avgTokens || 0),
         })),
       },
     });

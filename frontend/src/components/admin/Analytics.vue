@@ -380,6 +380,140 @@
             </div>
           </div>
         </div>
+
+        <!-- Template Analytics Tab -->
+        <div v-if="activeTab === 'templates'" class="tab-panel">
+          <h2>Template Performance & Usage</h2>
+          
+          <!-- Template Usage Summary -->
+          <div class="summary-cards">
+            <div v-for="usage in templateUsageData" :key="usage.source" class="summary-card">
+              <div class="card-icon">{{ usage.source === 'templates' ? '📝' : '⚙️' }}</div>
+              <div class="card-content">
+                <h3>{{ usage.source === 'templates' ? 'Template-Based' : 'Hardcoded' }}</h3>
+                <p class="card-value">{{ usage.count }}</p>
+                <p class="card-subtitle">Requests</p>
+                <p class="card-subtitle">Avg Tokens: {{ formatNumber(usage.avgTokens) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template Usage Chart -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h2>Template vs Hardcoded Usage</h2>
+              <div class="chart-wrapper">
+                <DoughnutChart 
+                  v-if="templateUsageChartData"
+                  :data="templateUsageChartData"
+                  :options="doughnutChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h2>Prompt Section Inclusion Rate</h2>
+              <div class="chart-wrapper">
+                <BarChart 
+                  v-if="sectionUsageChartData"
+                  :data="sectionUsageChartData"
+                  :options="barChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section Usage Table -->
+          <div class="tables-row">
+            <div class="table-card">
+              <h2>Prompt Section Usage</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Section Type</th>
+                    <th>Total Requests</th>
+                    <th>Included</th>
+                    <th>Inclusion Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="section in sectionUsageData" :key="section.sectionType">
+                    <td>{{ formatSectionType(section.sectionType) }}</td>
+                    <td>{{ section.total }}</td>
+                    <td>{{ section.included }}</td>
+                    <td>
+                      <span :class="section.inclusionRate >= 80 ? 'good' : section.inclusionRate >= 50 ? 'warning' : 'bad'">
+                        {{ section.inclusionRate }}%
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="!sectionUsageData || sectionUsageData.length === 0">
+                    <td colspan="4" class="no-data">Geen data beschikbaar</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- A/B Test Participation -->
+          <div v-if="abTestParticipationData && abTestParticipationData.length > 0" class="tables-row">
+            <div class="table-card">
+              <h2>A/B Test Participation</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Test Name</th>
+                    <th>Template</th>
+                    <th>Total Requests</th>
+                    <th>Variant A</th>
+                    <th>Variant B</th>
+                    <th>Avg Tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="test in abTestParticipationData" :key="test.testId">
+                    <td>{{ test.testName }}</td>
+                    <td>{{ test.templateName }}</td>
+                    <td>{{ test.count }}</td>
+                    <td>{{ test.variantA }}</td>
+                    <td>{{ test.variantB }}</td>
+                    <td>{{ formatNumber(test.avgTokens) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Template Version Performance -->
+          <div v-if="templateVersionPerformanceData && templateVersionPerformanceData.length > 0" class="tables-row">
+            <div class="table-card">
+              <h2>Template Section Performance</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Section Type</th>
+                    <th>Status</th>
+                    <th>Requests</th>
+                    <th>Avg Tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="perf in templateVersionPerformanceData" :key="`${perf.sectionType}-${perf.included}`">
+                    <td>{{ formatSectionType(perf.sectionType) }}</td>
+                    <td>
+                      <span :class="perf.included ? 'badge-active' : 'badge-inactive'">
+                        {{ perf.included ? 'Included' : 'Excluded' }}
+                      </span>
+                    </td>
+                    <td>{{ perf.count }}</td>
+                    <td>{{ formatNumber(perf.avgTokens) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -432,6 +566,12 @@ const tabs = computed(() => [
     label: 'Prompt Analytics', 
     icon: '🔍',
     badge: analytics.value?.promptAnalytics ? 'Nieuw' : null
+  },
+  { 
+    id: 'templates', 
+    label: 'Template Analytics', 
+    icon: '📝',
+    badge: analytics.value?.promptAnalytics?.templateUsage ? 'Nieuw' : null
   },
 ]);
 
@@ -502,6 +642,73 @@ const targetAudienceChartData = computed(() => {
     }],
   };
 });
+
+// Template Analytics computed properties
+const templateUsageData = computed(() => {
+  if (!promptAnalytics.value?.templateUsage?.length) return [];
+  return promptAnalytics.value.templateUsage;
+});
+
+const templateUsageChartData = computed(() => {
+  if (!templateUsageData.value.length) return null;
+  return {
+    labels: templateUsageData.value.map(item => 
+      item.source === 'templates' ? 'Template-Based' : 'Hardcoded'
+    ),
+    datasets: [{
+      data: templateUsageData.value.map(item => item.count),
+      backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(156, 163, 175, 0.8)'],
+    }],
+  };
+});
+
+const sectionUsageData = computed(() => {
+  if (!promptAnalytics.value?.sectionUsage?.length) return [];
+  return promptAnalytics.value.sectionUsage;
+});
+
+const sectionUsageChartData = computed(() => {
+  if (!sectionUsageData.value.length) return null;
+  return {
+    labels: sectionUsageData.value.map(item => formatSectionType(item.sectionType)),
+    datasets: [{
+      label: 'Inclusion Rate (%)',
+      data: sectionUsageData.value.map(item => item.inclusionRate),
+      backgroundColor: 'rgba(59, 130, 246, 0.8)',
+    }],
+  };
+});
+
+const abTestParticipationData = computed(() => {
+  if (!promptAnalytics.value?.abTestParticipation?.length) return [];
+  return promptAnalytics.value.abTestParticipation;
+});
+
+const templateVersionPerformanceData = computed(() => {
+  if (!promptAnalytics.value?.templateVersionPerformance?.length) return [];
+  return promptAnalytics.value.templateVersionPerformance;
+});
+
+function formatSectionType(type) {
+  const typeMap = {
+    'role': 'Role Definition',
+    'lvlContext': 'LVL Context',
+    'place': 'Place Context',
+    'targetAudience': 'Target Audience',
+    'outputFormat': 'Output Format',
+    'geoContext': 'Geographic Context',
+    'projectContext': 'Project Context',
+    'includeKeywords': 'Include Keywords',
+    'avoidKeywords': 'Avoid Keywords',
+    'references': 'References',
+    'dictionary': 'Dictionary',
+    'baseInstructions': 'Base Instructions',
+    'outputStructure': 'Output Structure',
+    'content': 'Content',
+    'imageSuggestion': 'Image Suggestion',
+  };
+  return typeMap[type] || type;
+}
 
 // Insights computed properties
 const hasLowResearchModeUsage = computed(() => researchModePercentage.value < 10 && totalResearchRequests.value > 10);
@@ -990,6 +1197,42 @@ onMounted(() => {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-6) 0;
+}
+
+/* Template Analytics Styles */
+.badge-active {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
+.badge-inactive {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.good {
+  color: #388e3c;
+  font-weight: 600;
+}
+
+.warning {
+  color: #f57c00;
+  font-weight: 600;
+}
+
+.bad {
+  color: #d32f2f;
+  font-weight: 600;
 }
 
 .insights-grid {
