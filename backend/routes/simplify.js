@@ -611,8 +611,8 @@ async function buildPrompt({
   
   if (useTemplates) {
     try {
-      // Pass the inner context object, not the wrapper
-      const templateResult = await buildPromptFromTemplates(context.context);
+      // Templates expect variables with source 'context.field', so wrap the context
+      const templateResult = await buildPromptFromTemplates({ context });
       
       // If templates returned a valid prompt, use it
       if (templateResult.prompt && templateResult.prompt.trim().length > 0) {
