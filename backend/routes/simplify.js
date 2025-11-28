@@ -899,6 +899,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
 
         // Track that we used a template
         promptSections = [{ type: 'template', included: true, templateId: templateId, source: assembledResult.source }];
+        promptSource = 'template';
 
         // Record template usage
         promptTemplate.usageCount = (promptTemplate.usageCount || 0) + 1;
@@ -924,6 +925,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       }
       // For custom prompts, we don't track sections (they're custom)
       promptSections = [{ type: 'custom', included: true }];
+      promptSource = 'custom';
     }
     
     // If neither template nor custom prompt, build standard prompt
@@ -950,6 +952,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       
       prompt = promptResult.prompt;
       promptSections = promptResult.sections || [];
+      promptSource = promptResult.source || 'hardcoded';
     }
 
     // Validate prompt was created
