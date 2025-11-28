@@ -92,12 +92,35 @@ router.get('/output-formats', authenticate, async (req, res) => {
 // POST /api/output-formats
 router.post('/output-formats', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { 
+      name, 
+      description,
+      requiresImageSuggestion,
+      requiresStructuredOutput,
+      outputStructure,
+      behavioralRules
+    } = req.body;
+    
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
 
-    const format = await OutputFormat.create({ name, description: description || '' });
+    const formatData = {
+      name,
+      description: description || '',
+      requiresImageSuggestion: requiresImageSuggestion || false,
+      requiresStructuredOutput: requiresStructuredOutput !== undefined ? requiresStructuredOutput : true,
+    };
+    
+    if (outputStructure) {
+      formatData.outputStructure = outputStructure;
+    }
+    
+    if (behavioralRules) {
+      formatData.behavioralRules = behavioralRules;
+    }
+
+    const format = await OutputFormat.create(formatData);
     res.status(201).json(format);
   } catch (error) {
     if (error.code === 11000) {
@@ -111,7 +134,15 @@ router.post('/output-formats', authenticate, requireRole('SUPER_ADMIN'), async (
 // PUT /api/output-formats/:id
 router.put('/output-formats/:id', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { 
+      name, 
+      description,
+      requiresImageSuggestion,
+      requiresStructuredOutput,
+      outputStructure,
+      behavioralRules
+    } = req.body;
+    
     const format = await OutputFormat.findById(req.params.id);
     if (!format) {
       return res.status(404).json({ error: 'Output format not found' });
@@ -119,6 +150,11 @@ router.put('/output-formats/:id', authenticate, requireRole('SUPER_ADMIN'), asyn
 
     if (name) format.name = name;
     if (description !== undefined) format.description = description;
+    if (requiresImageSuggestion !== undefined) format.requiresImageSuggestion = requiresImageSuggestion;
+    if (requiresStructuredOutput !== undefined) format.requiresStructuredOutput = requiresStructuredOutput;
+    if (outputStructure !== undefined) format.outputStructure = outputStructure;
+    if (behavioralRules !== undefined) format.behavioralRules = behavioralRules;
+    
     await format.save();
 
     res.json(format);

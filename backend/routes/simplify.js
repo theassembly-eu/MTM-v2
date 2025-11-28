@@ -117,6 +117,7 @@ function buildTargetAudienceSection(targetAudience) {
 
 /**
  * Build output format instruction section
+ * Uses database configuration fields when available, falls back to hardcoded values for backward compatibility
  * @param {Object} outputFormat - Output format object
  * @returns {Object} Object with { section: string, requiresImageSuggestion: boolean }
  */
@@ -152,14 +153,30 @@ function buildOutputFormatSection(outputFormat) {
     }
   }
 
-  // Handle format-specific behaviors (these are still based on format name)
-  // These are behavioral rules, not just instructions
-  if (outputFormat.name === 'Korte versie (Instagram-achtig)') {
-    requiresImageSuggestion = true;
+  // Use requiresImageSuggestion from database if set, otherwise use hardcoded logic
+  if (outputFormat.requiresImageSuggestion !== undefined) {
+    requiresImageSuggestion = outputFormat.requiresImageSuggestion;
+  } else {
+    // Fallback: Handle format-specific behaviors based on format name
+    if (outputFormat.name === 'Korte versie (Instagram-achtig)') {
+      requiresImageSuggestion = true;
+    }
   }
-  
-  if (outputFormat.name === 'Opsommingstekens') {
-    listAvoidance = ''; // Allow bullet points for this format
+
+  // Apply behavioral rules from database if available
+  if (outputFormat.behavioralRules && Array.isArray(outputFormat.behavioralRules) && outputFormat.behavioralRules.length > 0) {
+    // Process behavioral rules
+    outputFormat.behavioralRules.forEach(rule => {
+      if (rule.rule === 'ALLOW_BULLET_POINTS' || rule.rule === 'ALLOW_LISTS') {
+        listAvoidance = '';
+      }
+      // Add more rule processing as needed
+    });
+  } else {
+    // Fallback: Handle format-specific behaviors based on format name
+    if (outputFormat.name === 'Opsommingstekens') {
+      listAvoidance = ''; // Allow bullet points for this format
+    }
   }
 
   let section = `Output Format: ${formatInstruction}\n`;
