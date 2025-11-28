@@ -50,7 +50,264 @@ const lvlStyleMap = {
   FEDERAL: 'Use highly formal, policy-precise, institutional tone. Maintain clarity while respecting federal governance standards.',
 };
 
-// Build enriched prompt
+// ============================================================================
+// PROMPT SECTION BUILDERS (Modular Functions)
+// ============================================================================
+
+/**
+ * Build role definition section
+ * @param {Object} language - Language object with name property
+ * @returns {string} Role definition prompt section
+ */
+function buildRoleSection(language) {
+  return `You are a helpful seasoned professional in marketing with years of experience that simplifies complex ${language.name} political texts into clear, active, empathetic, and non-condescending language. You pay a lot of attention to Solidarity & social justice, Equal opportunity, Protecting purchasing power and fair taxation, Social-democratic economy. You are never condescending, very approachable and direct. Your tone is tailored on the Belgian audience.\n\n`;
+}
+
+/**
+ * Build LVL context section
+ * @param {Object} lvl - LVL object with code and places
+ * @param {string} place - Selected place (optional)
+ * @returns {string} LVL context prompt section
+ */
+function buildLvlContextSection(lvl, place) {
+  if (!lvl || !lvlStyleMap[lvl.code]) {
+    return '';
+  }
+  
+  let section = `Communication Level Context: ${lvlStyleMap[lvl.code]}\n\n`;
+  
+  // Only add place context if a specific place is selected
+  // Don't list all available places as it can confuse the AI
+  if (place && lvl.places && lvl.places.includes(place)) {
+    section += `IMPORTANT: This text is specifically for ${place}. Use local terminology, names of institutions, and context specific to ${place}. Reference local landmarks, districts, or relevant local information when appropriate.\n\n`;
+  }
+  
+  return section;
+}
+
+/**
+ * Build target audience instruction section
+ * @param {Object} targetAudience - Target audience object with name property
+ * @returns {string} Target audience prompt section
+ */
+function buildTargetAudienceSection(targetAudience) {
+  if (!targetAudience) {
+    return '';
+  }
+  
+  let audienceInstruction = '';
+  switch (targetAudience.name) {
+    case 'Algemeen':
+      audienceInstruction = 'for a broad audience, like "your uncle at the family party."';
+      break;
+    case 'Jongeren':
+      audienceInstruction = 'for a 20-year-old audience, using modern, engaging, and slightly informal language, including relevant slang or expressions where appropriate, but maintaining clarity.';
+      break;
+    case 'Ouderen':
+      audienceInstruction = 'for an elderly audience, using formal, respectful, and very clear language, avoiding jargon and complex sentence structures.';
+      break;
+  }
+  
+  if (audienceInstruction) {
+    return `Target Audience: ${audienceInstruction}\n\n`;
+  }
+  
+  return '';
+}
+
+/**
+ * Build output format instruction section
+ * @param {Object} outputFormat - Output format object
+ * @returns {Object} Object with { section: string, requiresImageSuggestion: boolean }
+ */
+function buildOutputFormatSection(outputFormat) {
+  if (!outputFormat) {
+    return { section: '', requiresImageSuggestion: false };
+  }
+  
+  let formatInstruction = '';
+  let requiresImageSuggestion = false;
+  let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
+
+  // Use description from database if available, otherwise fall back to hardcoded values
+  if (outputFormat.description && outputFormat.description.trim().length > 0) {
+    formatInstruction = outputFormat.description;
+  } else {
+    // Fallback to hardcoded instructions for backward compatibility
+    switch (outputFormat.name) {
+      case 'Samenvatting':
+        formatInstruction = 'Provide a concise summary.';
+        break;
+      case 'Korte versie (Instagram-achtig)':
+        formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
+        requiresImageSuggestion = true;
+        break;
+      case 'Medium versie (LinkedIn-achtig)':
+        formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
+        break;
+      case 'Opsommingstekens':
+        formatInstruction = 'Provide the output in bullet points.';
+        listAvoidance = '';
+        break;
+    }
+  }
+
+  // Handle format-specific behaviors (these are still based on format name)
+  // These are behavioral rules, not just instructions
+  if (outputFormat.name === 'Korte versie (Instagram-achtig)') {
+    requiresImageSuggestion = true;
+  }
+  
+  if (outputFormat.name === 'Opsommingstekens') {
+    listAvoidance = ''; // Allow bullet points for this format
+  }
+
+  let section = `Output Format: ${formatInstruction}\n`;
+  if (listAvoidance) {
+    section += `${listAvoidance}\n`;
+  }
+  section += '\n';
+  
+  return { section, requiresImageSuggestion };
+}
+
+/**
+ * Build geographic context section
+ * @param {string} geoContext - Geographic context string
+ * @returns {string} Geographic context prompt section
+ */
+function buildGeographicContextSection(geoContext) {
+  if (!geoContext) {
+    return '';
+  }
+  return `Geographic Context: This text is for ${geoContext}. Use local terminology and context where appropriate.\n\n`;
+}
+
+/**
+ * Build project context section
+ * @param {string} projectName - Project name
+ * @returns {string} Project context prompt section
+ */
+function buildProjectContextSection(projectName) {
+  if (!projectName) {
+    return '';
+  }
+  return `Project Context: This simplification is part of the "${projectName}" project. Maintain consistency with this project's communication style.\n\n`;
+}
+
+/**
+ * Build keywords section (include and avoid)
+ * @param {Array<string>} includeKeywords - Keywords to include
+ * @param {Array<string>} avoidKeywords - Keywords to avoid
+ * @returns {string} Keywords prompt section
+ */
+function buildKeywordsSection(includeKeywords, avoidKeywords) {
+  let section = '';
+  
+  if (includeKeywords && includeKeywords.length > 0) {
+    section += `IMPORTANT: You MUST include or reference these keywords: ${includeKeywords.join(', ')}\n\n`;
+  }
+  
+  if (avoidKeywords && avoidKeywords.length > 0) {
+    section += `IMPORTANT: You MUST avoid using these keywords or terms: ${avoidKeywords.join(', ')}\n\n`;
+  }
+  
+  return section;
+}
+
+/**
+ * Build references section
+ * @param {Array<Object>} referenceSummaries - Array of reference objects with title and summary
+ * @returns {string} References prompt section
+ */
+function buildReferencesSection(referenceSummaries) {
+  if (!referenceSummaries || referenceSummaries.length === 0) {
+    return '';
+  }
+  
+  let section = 'Contextual References:\n';
+  referenceSummaries.forEach((ref, index) => {
+    section += `${index + 1}. ${ref.title}: ${ref.summary}\n`;
+  });
+  section += '\n';
+  
+  return section;
+}
+
+/**
+ * Build dictionary section
+ * @param {Array<Object>} dictionaryTerms - Array of dictionary entry objects
+ * @returns {string} Dictionary prompt section
+ */
+function buildDictionarySection(dictionaryTerms) {
+  if (!dictionaryTerms || dictionaryTerms.length === 0) {
+    return '';
+  }
+  
+  let section = 'Use the following dictionary for simplification:\n';
+  dictionaryTerms.forEach(entry => {
+    section += `- ${entry.originalTerm}: ${entry.simplifiedTerm}\n`;
+  });
+  section += '\n';
+  
+  return section;
+}
+
+/**
+ * Build base instructions section
+ * @returns {string} Base instructions prompt section
+ */
+function buildBaseInstructionsSection() {
+  return `Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone. ABSOLUTELY AVOID technical terms; if a technical term is unavoidable, rephrase it in simple language.\n\n`;
+}
+
+/**
+ * Build output structure section
+ * @param {Object} outputFormat - Output format object
+ * @param {boolean} requiresImageSuggestion - Whether image suggestion is required
+ * @returns {string} Output structure prompt section
+ */
+function buildOutputStructureSection(outputFormat, requiresImageSuggestion) {
+  let structureParts = [
+    'Emotional Core Message: Start with a strong, emotional core message about people.',
+    'Problem Statement: Name the problem briefly and clearly.',
+    'Concluding Message: Conclude with a clear, impactful message.',
+    `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
+  ];
+  
+  // Add image suggestion section if required by output format
+  if (requiresImageSuggestion) {
+    structureParts.push('Image Suggestion: Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This is a REQUIRED section.');
+  }
+  
+  let section = `Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n`;
+  structureParts.forEach(part => {
+    section += `---\n${part}\n`;
+  });
+  section += '\n';
+  
+  return section;
+}
+
+/**
+ * Build content section (text to simplify)
+ * @param {string} text - Text to simplify
+ * @param {Object} language - Language object with name property
+ * @returns {string} Content prompt section
+ */
+function buildContentSection(text, language) {
+  return `Please simplify the following ${language.name} text and respond in ${language.name}. Ensure the tone is strongly connotated and impactful.\n\n"${text}"`;
+}
+
+// ============================================================================
+// MAIN PROMPT BUILDER
+// ============================================================================
+
+/**
+ * Build enriched prompt by assembling all sections
+ * @param {Object} params - Prompt building parameters
+ * @returns {string} Complete prompt
+ */
 function buildPrompt({
   text,
   lvl,
@@ -65,147 +322,51 @@ function buildPrompt({
   dictionaryTerms,
   projectName,
 }) {
-  let prompt = `You are a helpful seasoned professional in marketing with years of experience that simplifies complex ${language.name} political texts into clear, active, empathetic, and non-condescending language. You pay a lot of attention to Solidarity & social justice, Equal opportunity, Protecting purchasing power and fair taxation, Social-democratic economy. You are never condescending, very approachable and direct. Your tone is tailored on the Belgian audience.\n\n`;
-
-  // Add LVL context
-  if (lvl && lvlStyleMap[lvl.code]) {
-    prompt += `Communication Level Context: ${lvlStyleMap[lvl.code]}\n\n`;
-    
-    // Only add place context if a specific place is selected
-    // Don't list all available places as it can confuse the AI
-    if (place && lvl.places && lvl.places.includes(place)) {
-      prompt += `IMPORTANT: This text is specifically for ${place}. Use local terminology, names of institutions, and context specific to ${place}. Reference local landmarks, districts, or relevant local information when appropriate.\n\n`;
-    }
-  }
-
-  // Add target audience instruction
-  if (targetAudience) {
-    let audienceInstruction = '';
-    switch (targetAudience.name) {
-      case 'Algemeen':
-        audienceInstruction = 'for a broad audience, like "your uncle at the family party."';
-        break;
-      case 'Jongeren':
-        audienceInstruction = 'for a 20-year-old audience, using modern, engaging, and slightly informal language, including relevant slang or expressions where appropriate, but maintaining clarity.';
-        break;
-      case 'Ouderen':
-        audienceInstruction = 'for an elderly audience, using formal, respectful, and very clear language, avoiding jargon and complex sentence structures.';
-        break;
-    }
-    if (audienceInstruction) {
-      prompt += `Target Audience: ${audienceInstruction}\n\n`;
-    }
-  }
-
-  // Add output format instruction
+  // Build prompt sections using modular functions
+  let prompt = '';
+  
+  // 1. Role Definition
+  prompt += buildRoleSection(language);
+  
+  // 2. LVL Context (includes place if selected)
+  prompt += buildLvlContextSection(lvl, place);
+  
+  // 3. Target Audience
+  prompt += buildTargetAudienceSection(targetAudience);
+  
+  // 4. Output Format (returns section and requiresImageSuggestion flag)
+  const formatSection = buildOutputFormatSection(outputFormat);
+  prompt += formatSection.section;
+  
+  // Store flag for later use in structured output
   if (outputFormat) {
-    let formatInstruction = '';
-    let requiresImageSuggestion = false;
-    let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
-
-    // Use description from database if available, otherwise fall back to hardcoded values
-    if (outputFormat.description && outputFormat.description.trim().length > 0) {
-      formatInstruction = outputFormat.description;
-    } else {
-      // Fallback to hardcoded instructions for backward compatibility
-      switch (outputFormat.name) {
-        case 'Samenvatting':
-          formatInstruction = 'Provide a concise summary.';
-          break;
-        case 'Korte versie (Instagram-achtig)':
-          formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
-          requiresImageSuggestion = true;
-          break;
-        case 'Medium versie (LinkedIn-achtig)':
-          formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
-          break;
-        case 'Opsommingstekens':
-          formatInstruction = 'Provide the output in bullet points.';
-          listAvoidance = '';
-          break;
-      }
-    }
-
-    // Handle format-specific behaviors (these are still based on format name)
-    // These are behavioral rules, not just instructions
-    if (outputFormat.name === 'Korte versie (Instagram-achtig)') {
-      requiresImageSuggestion = true;
-    }
-    
-    if (outputFormat.name === 'Opsommingstekens') {
-      listAvoidance = ''; // Allow bullet points for this format
-    }
-
-    prompt += `Output Format: ${formatInstruction}\n`;
-    if (listAvoidance) prompt += `${listAvoidance}\n`;
-    prompt += '\n';
-    
-    // Store flag for later use in structured output
-    outputFormat.requiresImageSuggestion = requiresImageSuggestion;
-  }
-
-  // Add geographic context
-  if (geoContext) {
-    prompt += `Geographic Context: This text is for ${geoContext}. Use local terminology and context where appropriate.\n\n`;
-  }
-
-  // Add project name for consistency
-  if (projectName) {
-    prompt += `Project Context: This simplification is part of the "${projectName}" project. Maintain consistency with this project's communication style.\n\n`;
-  }
-
-  // Add keywords
-  if (includeKeywords && includeKeywords.length > 0) {
-    prompt += `IMPORTANT: You MUST include or reference these keywords: ${includeKeywords.join(', ')}\n\n`;
-  }
-
-  if (avoidKeywords && avoidKeywords.length > 0) {
-    prompt += `IMPORTANT: You MUST avoid using these keywords or terms: ${avoidKeywords.join(', ')}\n\n`;
-  }
-
-  // Add reference summaries
-  if (referenceSummaries && referenceSummaries.length > 0) {
-    prompt += 'Contextual References:\n';
-    referenceSummaries.forEach((ref, index) => {
-      prompt += `${index + 1}. ${ref.title}: ${ref.summary}\n`;
-    });
-    prompt += '\n';
-  }
-
-  // Add dictionary
-  if (dictionaryTerms && dictionaryTerms.length > 0) {
-    prompt += 'Use the following dictionary for simplification:\n';
-    dictionaryTerms.forEach(entry => {
-      prompt += `- ${entry.originalTerm}: ${entry.simplifiedTerm}\n`;
-    });
-    prompt += '\n';
-  }
-
-  // Add base instructions
-  prompt += `Your output should consist of short sentences and short words, with no more than 3 syllables per word, unless absolutely necessary for clarity or specific audience tone. ABSOLUTELY AVOID technical terms; if a technical term is unavoidable, rephrase it in simple language.\n\n`;
-
-  // Add structure - dynamically include image suggestion if required
-  let structureParts = [
-    'Emotional Core Message: Start with a strong, emotional core message about people.',
-    'Problem Statement: Name the problem briefly and clearly.',
-    'Concluding Message: Conclude with a clear, impactful message.',
-    `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
-  ];
-  
-  // Add image suggestion section if required by output format
-  if (outputFormat?.requiresImageSuggestion) {
-    structureParts.push('Image Suggestion: Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This is a REQUIRED section.');
+    outputFormat.requiresImageSuggestion = formatSection.requiresImageSuggestion;
   }
   
-  prompt += `Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n`;
-  structureParts.forEach(part => {
-    prompt += `---\n${part}\n`;
-  });
-  prompt += '\n';
-
-  // Add the text to simplify
-  prompt += `Please simplify the following ${language.name} text and respond in ${language.name}. Ensure the tone is strongly connotated and impactful.\n\n"${text}"`;
-
+  // 5. Geographic Context
+  prompt += buildGeographicContextSection(geoContext);
+  
+  // 6. Project Context
+  prompt += buildProjectContextSection(projectName);
+  
+  // 7. Keywords (include and avoid)
+  prompt += buildKeywordsSection(includeKeywords, avoidKeywords);
+  
+  // 8. References
+  prompt += buildReferencesSection(referenceSummaries);
+  
+  // 9. Dictionary
+  prompt += buildDictionarySection(dictionaryTerms);
+  
+  // 10. Base Instructions
+  prompt += buildBaseInstructionsSection();
+  
+  // 11. Output Structure (uses requiresImageSuggestion flag)
+  prompt += buildOutputStructureSection(outputFormat, formatSection.requiresImageSuggestion);
+  
+  // 12. Content (text to simplify)
+  prompt += buildContentSection(text, language);
+  
   return prompt;
 }
 
