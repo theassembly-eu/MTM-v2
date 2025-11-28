@@ -47,6 +47,7 @@
             </div>
           </div>
           <div class="template-actions">
+            <button @click="viewVersionHistory(template)" class="btn-version">Versies</button>
             <button @click="editTemplate(template)" class="btn-edit">Bewerken</button>
             <button @click="deleteTemplate(template)" class="btn-delete">Verwijderen</button>
           </div>
@@ -79,6 +80,47 @@
 
     <div v-if="!loading && templates.length === 0" class="empty-state">
       <p>Geen templates gevonden. Run de migratie om templates te maken.</p>
+    </div>
+
+    <!-- Version History Modal -->
+    <div v-if="showVersionModal" class="modal-overlay" @click="closeVersionModal">
+      <div class="modal modal-large" @click.stop>
+        <h3>Versie Geschiedenis: {{ selectedTemplateForVersion?.name }}</h3>
+        <div v-if="versionHistoryLoading" class="loading">Laden...</div>
+        <div v-else>
+          <div class="version-info">
+            <p><strong>Huidige Versie:</strong> {{ versionHistoryData?.currentVersion || 'N/A' }}</p>
+            <p><strong>Aantal Versies:</strong> {{ (versionHistoryData?.versionHistory?.length || 0) + 1 }}</p>
+          </div>
+          <div class="version-list">
+            <div class="version-item current">
+              <div class="version-header">
+                <span class="version-badge current">Huidige Versie</span>
+                <span class="version-number">{{ selectedTemplateForVersion?.currentVersion || selectedTemplateForVersion?.version }}</span>
+              </div>
+              <div class="version-content">
+                <pre>{{ truncateContent(selectedTemplateForVersion?.content) }}</pre>
+              </div>
+            </div>
+            <div v-for="(version, idx) in versionHistoryData?.versionHistory || []" :key="idx" class="version-item">
+              <div class="version-header">
+                <span class="version-badge">v{{ version.version }}</span>
+                <span class="version-date">{{ formatDate(version.createdAt) }}</span>
+                <button @click="rollbackToVersion(version.version)" class="btn-rollback">Terugzetten</button>
+              </div>
+              <div v-if="version.changeNotes" class="version-notes">
+                <strong>Notities:</strong> {{ version.changeNotes }}
+              </div>
+              <div class="version-content">
+                <pre>{{ truncateContent(version.content) }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button @click="closeVersionModal" class="btn-secondary">Sluiten</button>
+        </div>
+      </div>
     </div>
 
     <!-- Create/Edit Modal -->
@@ -119,11 +161,25 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label>
-              <input type="checkbox" v-model="templateForm.isActive" />
-              Actief
-            </label>
+          <div class="form-row">
+            <div class="form-group">
+              <label>
+                <input type="checkbox" v-model="templateForm.isActive" />
+                Actief
+              </label>
+            </div>
+            <div class="form-group" v-if="editingTemplate">
+              <label>
+                <input type="checkbox" v-model="templateForm.createNewVersion" />
+                Nieuwe Versie Aanmaken
+              </label>
+              <small>Huidige versie wordt opgeslagen in geschiedenis</small>
+            </div>
+          </div>
+          
+          <div class="form-group" v-if="editingTemplate && templateForm.createNewVersion">
+            <label>Wijzigingsnotities</label>
+            <textarea v-model="templateForm.changeNotes" rows="2" placeholder="Beschrijf waarom deze versie wordt aangemaakt..."></textarea>
           </div>
 
           <div class="form-group">
@@ -187,6 +243,10 @@ const error = ref(null);
 const showModal = ref(false);
 const editingTemplate = ref(null);
 const migrating = ref(false);
+const showVersionModal = ref(false);
+const selectedTemplateForVersion = ref(null);
+const versionHistoryData = ref(null);
+const versionHistoryLoading = ref(false);
 
 const filterType = ref('');
 const filterActive = ref(false);
@@ -202,6 +262,8 @@ const templateForm = ref({
   version: '1.0.0',
   isActive: true,
   metadata: {},
+  createNewVersion: false,
+  changeNotes: '',
 });
 
 async function fetchTemplates() {
@@ -282,9 +344,58 @@ function editTemplate(template) {
     version: template.version || '1.0.0',
     isActive: template.isActive !== undefined ? template.isActive : true,
     metadata: template.metadata || {},
+    createNewVersion: false,
+    changeNotes: '',
   };
   console.log('Template form:', templateForm.value);
   showModal.value = true;
+}
+
+async function viewVersionHistory(template) {
+  selectedTemplateForVersion.value = template;
+  versionHistoryLoading.value = true;
+  showVersionModal.value = true;
+  
+  try {
+    const response = await axios.get(`/api/system-prompt-templates/${template._id || template.id}/versions`);
+    versionHistoryData.value = response.data;
+  } catch (err) {
+    console.error('Error fetching version history:', err);
+    error.value = err.response?.data?.error || 'Fout bij het ophalen van versie geschiedenis';
+  } finally {
+    versionHistoryLoading.value = false;
+  }
+}
+
+function closeVersionModal() {
+  showVersionModal.value = false;
+  selectedTemplateForVersion.value = null;
+  versionHistoryData.value = null;
+}
+
+async function rollbackToVersion(version) {
+  if (!confirm(`Weet je zeker dat je terug wilt zetten naar versie ${version}? De huidige versie wordt opgeslagen in de geschiedenis.`)) {
+    return;
+  }
+  
+  try {
+    await axios.post(`/api/system-prompt-templates/${selectedTemplateForVersion.value._id || selectedTemplateForVersion.value.id}/rollback`, {
+      version,
+    });
+    alert('Versie succesvol teruggezet!');
+    await fetchTemplates();
+    await viewVersionHistory(selectedTemplateForVersion.value); // Refresh version history
+  } catch (err) {
+    console.error('Error rolling back version:', err);
+    error.value = err.response?.data?.error || 'Fout bij terugzetten van versie';
+    alert('Fout bij terugzetten: ' + error.value);
+  }
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleString('nl-NL');
 }
 
 function closeModal() {
@@ -295,9 +406,19 @@ function closeModal() {
 async function saveTemplate() {
   try {
     if (editingTemplate.value) {
-      await axios.put(`/api/system-prompt-templates/${editingTemplate.value._id || editingTemplate.value.id}`, templateForm.value);
+      const payload = { ...templateForm.value };
+      // Only send createNewVersion and changeNotes if checkbox is checked
+      if (!payload.createNewVersion) {
+        delete payload.createNewVersion;
+        delete payload.changeNotes;
+      }
+      await axios.put(`/api/system-prompt-templates/${editingTemplate.value._id || editingTemplate.value.id}`, payload);
     } else {
-      await axios.post('/api/system-prompt-templates', templateForm.value);
+      // Remove versioning fields for new templates
+      const payload = { ...templateForm.value };
+      delete payload.createNewVersion;
+      delete payload.changeNotes;
+      await axios.post('/api/system-prompt-templates', payload);
     }
     await fetchTemplates();
     closeModal();
@@ -654,6 +775,118 @@ onMounted(() => {
 
 .btn-delete:hover {
   background: #d32f2f;
+}
+
+.btn-version {
+  background: #9c27b0;
+  color: white;
+}
+
+.btn-version:hover {
+  background: #7b1fa2;
+}
+
+.version-info {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.version-info p {
+  margin: 0.5rem 0;
+}
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.version-item {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  background: white;
+}
+
+.version-item.current {
+  border-color: #4caf50;
+  background: #f1f8f4;
+}
+
+.version-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.version-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: #e0e0e0;
+  color: #333;
+}
+
+.version-badge.current {
+  background: #4caf50;
+  color: white;
+}
+
+.version-number {
+  font-weight: 600;
+  color: #333;
+}
+
+.version-date {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.btn-rollback {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-rollback:hover {
+  background: #f57c00;
+}
+
+.version-notes {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: #fff3cd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #856404;
+}
+
+.version-content {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.version-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  max-height: 200px;
+  overflow-y: auto;
 }
 </style>
 

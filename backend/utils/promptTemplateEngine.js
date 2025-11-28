@@ -125,12 +125,59 @@ function orderTemplates(templates) {
 }
 
 /**
+ * Get template content for a specific version
+ * @param {Object} template - Template document
+ * @param {string} version - Optional version string (if not provided, uses currentVersion)
+ * @returns {Object} Template content object with content, variables, conditions
+ */
+function getTemplateVersion(template, version = null) {
+  // If no version specified, use current version
+  const targetVersion = version || template.currentVersion || template.version;
+  
+  // If requesting current version, return current template data
+  if (targetVersion === (template.currentVersion || template.version)) {
+    return {
+      content: template.content,
+      variables: template.variables || [],
+      conditions: template.conditions || [],
+      priority: template.priority,
+      version: targetVersion,
+    };
+  }
+  
+  // Otherwise, find in version history
+  if (template.versionHistory && template.versionHistory.length > 0) {
+    const versionEntry = template.versionHistory.find(v => v.version === targetVersion);
+    if (versionEntry) {
+      return {
+        content: versionEntry.content,
+        variables: versionEntry.variables || [],
+        conditions: versionEntry.conditions || [],
+        priority: versionEntry.priority,
+        version: targetVersion,
+      };
+    }
+  }
+  
+  // Fallback to current version if requested version not found
+  console.warn(`Version ${targetVersion} not found for template ${template.name}, using current version`);
+  return {
+    content: template.content,
+    variables: template.variables || [],
+    conditions: template.conditions || [],
+    priority: template.priority,
+    version: template.currentVersion || template.version,
+  };
+}
+
+/**
  * Build prompt from system templates
  * @param {Object} context - Context object with all data needed for templates
  * @param {Array} templateTypes - Optional array of types to include (if not provided, includes all)
+ * @param {Object} versionOverrides - Optional object mapping template names to specific versions
  * @returns {Object} Object with { prompt: string, sections: Array }
  */
-export async function buildPromptFromTemplates(context, templateTypes = null) {
+export async function buildPromptFromTemplates(context, templateTypes = null, versionOverrides = {}) {
   try {
     // Load all active templates
     const filter = { isActive: true };
@@ -160,9 +207,13 @@ export async function buildPromptFromTemplates(context, templateTypes = null) {
     const sections = [];
     
     orderedTemplates.forEach(template => {
+      // Get the appropriate version of the template
+      const requestedVersion = versionOverrides[template.name] || null;
+      const templateVersion = getTemplateVersion(template, requestedVersion);
+      
       const resolvedContent = resolveTemplateVariables(
-        template.content,
-        template.variables,
+        templateVersion.content,
+        templateVersion.variables,
         context
       );
       
@@ -171,13 +222,14 @@ export async function buildPromptFromTemplates(context, templateTypes = null) {
       sections.push({
         type: template.type,
         name: template.name,
+        version: templateVersion.version,
         included: true,
       });
     });
     
     return {
       prompt,
-      sections: sections.map(s => ({ type: s.type, included: s.included })),
+      sections: sections.map(s => ({ type: s.type, name: s.name, version: s.version, included: s.included })),
     };
   } catch (error) {
     console.error('Error building prompt from templates:', error);
