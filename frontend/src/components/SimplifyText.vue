@@ -680,6 +680,39 @@ const selectedReferenceNames = computed(() => {
     .map(ref => ref.title);
 });
 
+// Computed properties for accordion badges
+const hasContextData = computed(() => {
+  return geoContext.value.length > 0 || 
+         includeKeywords.value.length > 0 || 
+         avoidKeywords.value.length > 0 || 
+         selectedReferenceIds.value.length > 0 ||
+         (availablePlaces.value.length > 0 && selectedPlace.value);
+});
+
+const contextDataCount = computed(() => {
+  let count = 0;
+  if (geoContext.value.length > 0) count++;
+  if (includeKeywords.value.length > 0) count++;
+  if (avoidKeywords.value.length > 0) count++;
+  if (selectedReferenceIds.value.length > 0) count++;
+  if (availablePlaces.value.length > 0 && selectedPlace.value) count++;
+  return count;
+});
+
+const hasAdvancedData = computed(() => {
+  return researchMode.value || 
+         selectedTemplateId.value || 
+         generatedPrompt.value.length > 0;
+});
+
+const advancedDataCount = computed(() => {
+  let count = 0;
+  if (researchMode.value) count++;
+  if (selectedTemplateId.value) count++;
+  if (generatedPrompt.value.length > 0) count++;
+  return count;
+});
+
 // Methods
 async function fetchTeams() {
   loadingTeams.value = true;
