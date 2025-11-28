@@ -108,21 +108,38 @@ function buildPrompt({
     let imageSuggestion = '';
     let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
 
-    switch (outputFormat.name) {
-      case 'Samenvatting':
-        formatInstruction = 'Provide a concise summary.';
-        break;
-      case 'Korte versie (Instagram-achtig)':
-        formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
-        imageSuggestion = '\nSuggest a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian.';
-        break;
-      case 'Medium versie (LinkedIn-achtig)':
-        formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
-        break;
-      case 'Opsommingstekens':
-        formatInstruction = 'Provide the output in bullet points.';
-        listAvoidance = '';
-        break;
+    // Use description from database if available, otherwise fall back to hardcoded values
+    if (outputFormat.description && outputFormat.description.trim().length > 0) {
+      formatInstruction = outputFormat.description;
+    } else {
+      // Fallback to hardcoded instructions for backward compatibility
+      switch (outputFormat.name) {
+        case 'Samenvatting':
+          formatInstruction = 'Provide a concise summary.';
+          break;
+        case 'Korte versie (Instagram-achtig)':
+          formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
+          imageSuggestion = '\nSuggest a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian.';
+          break;
+        case 'Medium versie (LinkedIn-achtig)':
+          formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
+          break;
+        case 'Opsommingstekens':
+          formatInstruction = 'Provide the output in bullet points.';
+          listAvoidance = '';
+          break;
+      }
+    }
+
+    // Handle format-specific behaviors (these are still based on format name)
+    // These are behavioral rules, not just instructions
+    if (outputFormat.name === 'Korte versie (Instagram-achtig)' && !imageSuggestion) {
+      // Only add image suggestion if not already set from description
+      imageSuggestion = '\nSuggest a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian.';
+    }
+    
+    if (outputFormat.name === 'Opsommingstekens') {
+      listAvoidance = ''; // Allow bullet points for this format
     }
 
     prompt += `Output Format: ${formatInstruction}\n`;
