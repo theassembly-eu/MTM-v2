@@ -611,7 +611,8 @@ async function buildPrompt({
   
   if (useTemplates) {
     try {
-      const templateResult = await buildPromptFromTemplates(context);
+      // Pass the inner context object, not the wrapper
+      const templateResult = await buildPromptFromTemplates(context.context);
       
       // If templates returned a valid prompt, use it
       if (templateResult.prompt && templateResult.prompt.trim().length > 0) {
