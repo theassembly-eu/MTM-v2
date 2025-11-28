@@ -2,7 +2,7 @@
   <div class="analytics-page">
     <div class="page-header">
       <h1>Analytics Dashboard</h1>
-      <p class="page-subtitle">Platform gebruik en statistieken</p>
+      <p class="page-subtitle">Platform gebruik, statistieken en prompt management inzichten</p>
     </div>
 
     <!-- Date Filter -->
@@ -34,134 +34,351 @@
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <div v-if="!loading && !error && analytics" class="analytics-content">
-      <!-- Summary Cards -->
-      <div class="summary-cards">
-        <div class="summary-card">
-          <div class="card-icon">📊</div>
-          <div class="card-content">
-            <h3>Totale Requests</h3>
-            <p class="card-value">{{ analytics.summary.totalRequests }}</p>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="card-icon">👥</div>
-          <div class="card-content">
-            <h3>Actieve Gebruikers</h3>
-            <p class="card-value">{{ analytics.summary.totalUsers }}</p>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="card-icon">🏢</div>
-          <div class="card-content">
-            <h3>Teams</h3>
-            <p class="card-value">{{ analytics.summary.totalTeams }}</p>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="card-icon">📁</div>
-          <div class="card-content">
-            <h3>Projecten</h3>
-            <p class="card-value">{{ analytics.summary.totalProjects }}</p>
-          </div>
-        </div>
-        <div v-if="analytics.summary.totalTokens > 0" class="summary-card">
-          <div class="card-icon">🔢</div>
-          <div class="card-content">
-            <h3>Totale Tokens</h3>
-            <p class="card-value">{{ formatNumber(analytics.summary.totalTokens) }}</p>
-            <p class="card-subtitle">Gemiddeld: {{ formatNumber(Math.round(analytics.summary.avgTokens)) }}</p>
-          </div>
+      <!-- Tabs Navigation -->
+      <div class="tabs-container">
+        <div class="tabs">
+          <button 
+            v-for="tab in tabs" 
+            :key="tab.id"
+            @click="activeTab = tab.id"
+            :class="['tab-button', { active: activeTab === tab.id }]"
+          >
+            <span class="tab-icon">{{ tab.icon }}</span>
+            <span class="tab-label">{{ tab.label }}</span>
+            <span v-if="tab.badge" class="tab-badge">{{ tab.badge }}</span>
+          </button>
         </div>
       </div>
 
-      <!-- Charts Row 1 -->
-      <div class="charts-row">
-        <div class="chart-card">
-          <h2>Requests Over Tijd</h2>
-          <div class="chart-wrapper">
-            <LineChart 
-              v-if="analytics.requestsOverTime.length > 0"
-              :data="requestsOverTimeChartData"
-              :options="lineChartOptions"
-            />
-            <div v-else class="no-data">Geen data beschikbaar</div>
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- Overview Tab -->
+        <div v-if="activeTab === 'overview'" class="tab-panel">
+          <!-- Summary Cards -->
+          <div class="summary-cards">
+            <div class="summary-card">
+              <div class="card-icon">📊</div>
+              <div class="card-content">
+                <h3>Totale Requests</h3>
+                <p class="card-value">{{ analytics.summary.totalRequests }}</p>
+              </div>
+            </div>
+            <div class="summary-card">
+              <div class="card-icon">👥</div>
+              <div class="card-content">
+                <h3>Actieve Gebruikers</h3>
+                <p class="card-value">{{ analytics.summary.totalUsers }}</p>
+              </div>
+            </div>
+            <div class="summary-card">
+              <div class="card-icon">🏢</div>
+              <div class="card-content">
+                <h3>Teams</h3>
+                <p class="card-value">{{ analytics.summary.totalTeams }}</p>
+              </div>
+            </div>
+            <div class="summary-card">
+              <div class="card-icon">📁</div>
+              <div class="card-content">
+                <h3>Projecten</h3>
+                <p class="card-value">{{ analytics.summary.totalProjects }}</p>
+              </div>
+            </div>
+            <div v-if="analytics.summary.totalTokens > 0" class="summary-card">
+              <div class="card-icon">🔢</div>
+              <div class="card-content">
+                <h3>Totale Tokens</h3>
+                <p class="card-value">{{ formatNumber(analytics.summary.totalTokens) }}</p>
+                <p class="card-subtitle">Gemiddeld: {{ formatNumber(Math.round(analytics.summary.avgTokens)) }}</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Charts Row 2 -->
-      <div class="charts-row">
-        <div class="chart-card">
-          <h2>Requests per Gebruiker (Top 10)</h2>
-          <div class="chart-wrapper">
-            <BarChart 
-              v-if="analytics.requestsPerUser.length > 0"
-              :data="requestsPerUserChartData"
-              :options="barChartOptions"
-            />
-            <div v-else class="no-data">Geen data beschikbaar</div>
+          <!-- Charts Row 1 -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h2>Requests Over Tijd</h2>
+              <div class="chart-wrapper">
+                <LineChart 
+                  v-if="analytics.requestsOverTime.length > 0"
+                  :data="requestsOverTimeChartData"
+                  :options="lineChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="chart-card">
-          <h2>Requests per Team (Top 10)</h2>
-          <div class="chart-wrapper">
-            <BarChart 
-              v-if="analytics.requestsPerTeam.length > 0"
-              :data="requestsPerTeamChartData"
-              :options="barChartOptions"
-            />
-            <div v-else class="no-data">Geen data beschikbaar</div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Charts Row 3 -->
-      <div class="charts-row">
-        <div class="chart-card">
-          <h2>LVL Gebruik</h2>
-          <div class="chart-wrapper">
-            <DoughnutChart 
-              v-if="analytics.lvlUsage.length > 0"
-              :data="lvlUsageChartData"
-              :options="doughnutChartOptions"
-            />
-            <div v-else class="no-data">Geen data beschikbaar</div>
+          <!-- Charts Row 2 -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h2>Requests per Gebruiker (Top 10)</h2>
+              <div class="chart-wrapper">
+                <BarChart 
+                  v-if="analytics.requestsPerUser.length > 0"
+                  :data="requestsPerUserChartData"
+                  :options="barChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h2>Requests per Team (Top 10)</h2>
+              <div class="chart-wrapper">
+                <BarChart 
+                  v-if="analytics.requestsPerTeam.length > 0"
+                  :data="requestsPerTeamChartData"
+                  :options="barChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="chart-card">
-          <h2>Populaire Trefwoorden (Top 20)</h2>
-          <div class="chart-wrapper">
-            <BarChart 
-              v-if="analytics.popularKeywords.length > 0"
-              :data="popularKeywordsChartData"
-              :options="barChartOptions"
-            />
-            <div v-else class="no-data">Geen data beschikbaar</div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Tables -->
-      <div class="tables-row">
-        <div class="table-card">
-          <h2>Requests per Project (Top 10)</h2>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Project</th>
-                <th>Requests</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in analytics.requestsPerProject" :key="item.projectId">
-                <td>{{ item.projectName }}</td>
-                <td>{{ item.count }}</td>
-              </tr>
-              <tr v-if="analytics.requestsPerProject.length === 0">
-                <td colspan="2" class="no-data">Geen data beschikbaar</td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- Charts Row 3 -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h2>LVL Gebruik</h2>
+              <div class="chart-wrapper">
+                <DoughnutChart 
+                  v-if="analytics.lvlUsage.length > 0"
+                  :data="lvlUsageChartData"
+                  :options="doughnutChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h2>Populaire Trefwoorden (Top 20)</h2>
+              <div class="chart-wrapper">
+                <BarChart 
+                  v-if="analytics.popularKeywords.length > 0"
+                  :data="popularKeywordsChartData"
+                  :options="barChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tables -->
+          <div class="tables-row">
+            <div class="table-card">
+              <h2>Requests per Project (Top 10)</h2>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Requests</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in analytics.requestsPerProject" :key="item.projectId">
+                    <td>{{ item.projectName }}</td>
+                    <td>{{ item.count }}</td>
+                  </tr>
+                  <tr v-if="analytics.requestsPerProject.length === 0">
+                    <td colspan="2" class="no-data">Geen data beschikbaar</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prompt Analytics Tab -->
+        <div v-if="activeTab === 'prompts'" class="tab-panel">
+          <div class="insights-header">
+            <h2>Prompt Management Inzichten</h2>
+            <p class="insights-subtitle">Analyse van prompt gebruik om optimalisaties te identificeren</p>
+          </div>
+
+          <!-- Prompt Summary Cards -->
+          <div class="summary-cards">
+            <div class="summary-card highlight">
+              <div class="card-icon">📝</div>
+              <div class="card-content">
+                <h3>Output Formaten</h3>
+                <p class="card-value">{{ promptAnalytics?.outputFormatUsage?.length || 0 }}</p>
+                <p class="card-subtitle">Unieke formaten gebruikt</p>
+              </div>
+            </div>
+            <div class="summary-card highlight">
+              <div class="card-icon">🔬</div>
+              <div class="card-content">
+                <h3>Research Mode</h3>
+                <p class="card-value">{{ researchModePercentage }}%</p>
+                <p class="card-subtitle">{{ researchModeStats?.enabled || 0 }} van {{ totalResearchRequests }} requests</p>
+              </div>
+            </div>
+            <div class="summary-card highlight">
+              <div class="card-icon">🎯</div>
+              <div class="card-content">
+                <h3>Doelgroepen</h3>
+                <p class="card-value">{{ promptAnalytics?.targetAudienceUsage?.length || 0 }}</p>
+                <p class="card-subtitle">Actieve doelgroepen</p>
+              </div>
+            </div>
+            <div class="summary-card highlight">
+              <div class="card-icon">📚</div>
+              <div class="card-content">
+                <h3>Referenties</h3>
+                <p class="card-value">{{ promptAnalytics?.referenceUsage?.length || 0 }}</p>
+                <p class="card-subtitle">Meest gebruikt</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Output Format Analysis -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h2>Output Formaat Distributie</h2>
+              <div class="chart-wrapper">
+                <DoughnutChart 
+                  v-if="outputFormatChartData"
+                  :data="outputFormatChartData"
+                  :options="doughnutChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h2>Token Gebruik per Formaat</h2>
+              <div class="chart-wrapper">
+                <BarChart 
+                  v-if="tokenUsageByFormatChartData"
+                  :data="tokenUsageByFormatChartData"
+                  :options="barChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Research Mode Analysis -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h2>Research Mode Adoptie</h2>
+              <div class="chart-wrapper">
+                <DoughnutChart 
+                  v-if="researchModeChartData"
+                  :data="researchModeChartData"
+                  :options="doughnutChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+              <div v-if="researchModeStats" class="chart-insights">
+                <div class="insight-item">
+                  <span class="insight-label">Gemiddeld Tokens (Research):</span>
+                  <span class="insight-value">{{ formatNumber(researchModeStats.enabledAvgTokens) }}</span>
+                </div>
+                <div class="insight-item">
+                  <span class="insight-label">Gemiddeld Tokens (Normaal):</span>
+                  <span class="insight-value">{{ formatNumber(researchModeStats.disabledAvgTokens) }}</span>
+                </div>
+                <div class="insight-item highlight">
+                  <span class="insight-label">Verschil:</span>
+                  <span class="insight-value">{{ formatNumber(researchModeStats.enabledAvgTokens - researchModeStats.disabledAvgTokens) }} tokens</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h2>Doelgroep Distributie</h2>
+              <div class="chart-wrapper">
+                <BarChart 
+                  v-if="targetAudienceChartData"
+                  :data="targetAudienceChartData"
+                  :options="barChartOptions"
+                />
+                <div v-else class="no-data">Geen data beschikbaar</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tables -->
+          <div class="tables-row">
+            <div class="table-card">
+              <h2>Output Formaten Gebruik</h2>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Formaat</th>
+                    <th>Requests</th>
+                    <th>Gem. Tokens</th>
+                    <th>% van Totaal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in promptAnalytics?.outputFormatUsage" :key="item.formatId">
+                    <td><strong>{{ item.formatName }}</strong></td>
+                    <td>{{ item.count }}</td>
+                    <td>{{ formatNumber(item.avgTokens) }}</td>
+                    <td>{{ formatPercentage(item.count, analytics.summary.totalRequests) }}%</td>
+                  </tr>
+                  <tr v-if="!promptAnalytics?.outputFormatUsage?.length">
+                    <td colspan="4" class="no-data">Geen data beschikbaar</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-card">
+              <h2>Meest Gebruikte Referenties</h2>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Referentie</th>
+                    <th>Gebruik</th>
+                    <th>% van Requests</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in promptAnalytics?.referenceUsage" :key="item.referenceId">
+                    <td>{{ item.referenceTitle }}</td>
+                    <td>{{ item.count }}</td>
+                    <td>{{ formatPercentage(item.count, analytics.summary.totalRequests) }}%</td>
+                  </tr>
+                  <tr v-if="!promptAnalytics?.referenceUsage?.length">
+                    <td colspan="3" class="no-data">Geen data beschikbaar</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Actionable Insights -->
+          <div class="insights-section">
+            <h2>💡 Actiepunten & Aanbevelingen</h2>
+            <div class="insights-grid">
+              <div v-if="hasLowResearchModeUsage" class="insight-card warning">
+                <div class="insight-icon">⚠️</div>
+                <div class="insight-content">
+                  <h3>Research Mode Onderbenut</h3>
+                  <p>Research Mode wordt slechts {{ researchModePercentage }}% van de tijd gebruikt. Overweeg gebruikers te informeren over de voordelen voor complexe teksten.</p>
+                </div>
+              </div>
+              <div v-if="hasUnbalancedFormatUsage" class="insight-card info">
+                <div class="insight-icon">📊</div>
+                <div class="insight-content">
+                  <h3>Ongebalanceerd Formaat Gebruik</h3>
+                  <p>Eén output formaat wordt veel vaker gebruikt dan anderen. Overweeg gebruikers te informeren over alternatieve formaten.</p>
+                </div>
+              </div>
+              <div v-if="hasHighTokenUsage" class="insight-card warning">
+                <div class="insight-icon">💰</div>
+                <div class="insight-content">
+                  <h3>Hoge Token Gebruik</h3>
+                  <p>Gemiddeld {{ formatNumber(Math.round(analytics.summary.avgTokens)) }} tokens per request. Overweeg prompt optimalisatie om kosten te verlagen.</p>
+                </div>
+              </div>
+              <div v-if="hasLowReferenceUsage" class="insight-card info">
+                <div class="insight-icon">📚</div>
+                <div class="insight-content">
+                  <h3>Referenties Onderbenut</h3>
+                  <p>Referenties worden weinig gebruikt. Overweeg gebruikers te trainen over het belang van contextuele referenties.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -206,22 +423,113 @@ const error = ref(null);
 const analytics = ref(null);
 const startDate = ref('');
 const endDate = ref('');
+const activeTab = ref('overview');
+
+const tabs = computed(() => [
+  { id: 'overview', label: 'Overzicht', icon: '📊' },
+  { 
+    id: 'prompts', 
+    label: 'Prompt Analytics', 
+    icon: '🔍',
+    badge: analytics.value?.promptAnalytics ? 'Nieuw' : null
+  },
+]);
+
+// Computed properties for prompt analytics
+const promptAnalytics = computed(() => analytics.value?.promptAnalytics);
+const researchModeStats = computed(() => promptAnalytics.value?.researchModeStats);
+const totalResearchRequests = computed(() => 
+  (researchModeStats.value?.enabled || 0) + (researchModeStats.value?.disabled || 0)
+);
+const researchModePercentage = computed(() => {
+  if (!totalResearchRequests.value) return 0;
+  return Math.round((researchModeStats.value?.enabled || 0) / totalResearchRequests.value * 100);
+});
+
+// Chart data for prompt analytics
+const outputFormatChartData = computed(() => {
+  if (!promptAnalytics.value?.outputFormatUsage?.length) return null;
+  const colors = [
+    'rgba(59, 130, 246, 0.8)',
+    'rgba(16, 185, 129, 0.8)',
+    'rgba(245, 158, 11, 0.8)',
+    'rgba(239, 68, 68, 0.8)',
+    'rgba(139, 92, 246, 0.8)',
+    'rgba(236, 72, 153, 0.8)',
+  ];
+  return {
+    labels: promptAnalytics.value.outputFormatUsage.map(item => item.formatName),
+    datasets: [{
+      data: promptAnalytics.value.outputFormatUsage.map(item => item.count),
+      backgroundColor: promptAnalytics.value.outputFormatUsage.map((_, index) => 
+        colors[index % colors.length]
+      ),
+    }],
+  };
+});
+
+const tokenUsageByFormatChartData = computed(() => {
+  if (!promptAnalytics.value?.tokenUsageByFormat?.length) return null;
+  return {
+    labels: promptAnalytics.value.tokenUsageByFormat.map(item => item.formatName),
+    datasets: [{
+      label: 'Gemiddeld Tokens',
+      data: promptAnalytics.value.tokenUsageByFormat.map(item => item.avgTokens),
+      backgroundColor: 'rgba(59, 130, 246, 0.8)',
+    }],
+  };
+});
+
+const researchModeChartData = computed(() => {
+  if (!researchModeStats.value) return null;
+  return {
+    labels: ['Research Mode Aan', 'Research Mode Uit'],
+    datasets: [{
+      data: [researchModeStats.value.enabled, researchModeStats.value.disabled],
+      backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(156, 163, 175, 0.8)'],
+    }],
+  };
+});
+
+const targetAudienceChartData = computed(() => {
+  if (!promptAnalytics.value?.targetAudienceUsage?.length) return null;
+  return {
+    labels: promptAnalytics.value.targetAudienceUsage.map(item => item.audienceName),
+    datasets: [{
+      label: 'Gebruik',
+      data: promptAnalytics.value.targetAudienceUsage.map(item => item.count),
+      backgroundColor: 'rgba(139, 92, 246, 0.8)',
+    }],
+  };
+});
+
+// Insights computed properties
+const hasLowResearchModeUsage = computed(() => researchModePercentage.value < 10 && totalResearchRequests.value > 10);
+const hasUnbalancedFormatUsage = computed(() => {
+  if (!promptAnalytics.value?.outputFormatUsage?.length) return false;
+  const counts = promptAnalytics.value.outputFormatUsage.map(item => item.count);
+  const max = Math.max(...counts);
+  const total = counts.reduce((a, b) => a + b, 0);
+  return max / total > 0.7; // One format used >70% of the time
+});
+const hasHighTokenUsage = computed(() => analytics.value?.summary?.avgTokens > 2000);
+const hasLowReferenceUsage = computed(() => {
+  if (!analytics.value?.summary?.totalRequests) return false;
+  const totalRefUsage = promptAnalytics.value?.referenceUsage?.reduce((sum, item) => sum + item.count, 0) || 0;
+  return totalRefUsage / analytics.value.summary.totalRequests < 0.2; // <20% of requests use references
+});
 
 // Chart options
 const lineChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: {
-      display: false,
-    },
+    legend: { display: false },
   },
   scales: {
     y: {
       beginAtZero: true,
-      ticks: {
-        stepSize: 1,
-      },
+      ticks: { stepSize: 1 },
     },
   },
 };
@@ -230,16 +538,12 @@ const barChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: {
-      display: false,
-    },
+    legend: { display: false },
   },
   scales: {
     y: {
       beginAtZero: true,
-      ticks: {
-        stepSize: 1,
-      },
+      ticks: { stepSize: 1 },
     },
   },
 };
@@ -248,13 +552,11 @@ const doughnutChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: {
-      position: 'right',
-    },
+    legend: { position: 'right' },
   },
 };
 
-// Chart data computed properties
+// Chart data computed properties (existing)
 const requestsOverTimeChartData = computed(() => {
   if (!analytics.value?.requestsOverTime) return null;
   return {
@@ -363,6 +665,11 @@ function formatNumber(num) {
   return new Intl.NumberFormat('nl-NL').format(num);
 }
 
+function formatPercentage(value, total) {
+  if (!total || total === 0) return 0;
+  return Math.round((value / total) * 100);
+}
+
 onMounted(() => {
   fetchAnalytics();
 });
@@ -421,6 +728,78 @@ onMounted(() => {
   font-size: var(--font-size-sm);
 }
 
+/* Tabs */
+.tabs-container {
+  margin-bottom: var(--spacing-6);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--spacing-2);
+  overflow-x: auto;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-6);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  position: relative;
+}
+
+.tab-button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.tab-button.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.tab-icon {
+  font-size: var(--font-size-lg);
+}
+
+.tab-badge {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.tab-content {
+  margin-top: var(--spacing-6);
+}
+
+.tab-panel {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -437,6 +816,17 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-4);
+  transition: all var(--transition-base);
+}
+
+.summary-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(59, 130, 246, 0.05) 100%);
 }
 
 .card-icon {
@@ -498,8 +888,33 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.chart-wrapper canvas {
-  max-height: 100% !important;
+.chart-insights {
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.insight-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.insight-item.highlight {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+}
+
+.insight-label {
+  color: var(--color-text-secondary);
+}
+
+.insight-value {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
 }
 
 .tables-row {
@@ -545,6 +960,86 @@ onMounted(() => {
 .data-table td {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.insights-header {
+  margin-bottom: var(--spacing-6);
+}
+
+.insights-header h2 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.insights-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.insights-section {
+  margin-top: var(--spacing-8);
+  padding-top: var(--spacing-8);
+  border-top: 2px solid var(--color-border);
+}
+
+.insights-section h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-6) 0;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.insight-card {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  display: flex;
+  gap: var(--spacing-4);
+  transition: all var(--transition-base);
+}
+
+.insight-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.insight-card.warning {
+  border-left: 4px solid var(--color-warning);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, var(--color-bg-primary) 100%);
+}
+
+.insight-card.info {
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, var(--color-bg-primary) 100%);
+}
+
+.insight-icon {
+  font-size: var(--font-size-2xl);
+  flex-shrink: 0;
+}
+
+.insight-content h3 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.insight-content p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: var(--line-height-relaxed);
 }
 
 .no-data {
@@ -595,6 +1090,10 @@ onMounted(() => {
   .charts-row {
     grid-template-columns: 1fr;
   }
+  
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -611,6 +1110,10 @@ onMounted(() => {
     min-height: 250px;
     max-height: 250px;
   }
+  
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 </style>
-

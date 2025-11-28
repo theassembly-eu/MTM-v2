@@ -211,6 +211,158 @@ router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
       },
     ]);
 
+    // PROMPT ANALYTICS: Output Format Usage
+    const outputFormatUsage = await RequestLog.aggregate([
+      { $match: { ...dateFilter, outputFormat: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$outputFormat',
+          count: { $sum: 1 },
+          avgTokens: { $avg: '$modelMeta.totalTokens' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'outputformats',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'formatData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$formatData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          formatId: '$_id',
+          formatName: { $ifNull: ['$formatData.name', 'Unknown'] },
+          count: 1,
+          avgTokens: { $ifNull: ['$avgTokens', 0] },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    // PROMPT ANALYTICS: Research Mode Usage
+    const researchModeStats = await RequestLog.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: { $ifNull: ['$researchMode', false] },
+          count: { $sum: 1 },
+          avgTokens: { $avg: '$modelMeta.totalTokens' },
+        },
+      },
+    ]);
+
+    // PROMPT ANALYTICS: Target Audience Distribution
+    const targetAudienceUsage = await RequestLog.aggregate([
+      { $match: { ...dateFilter, targetAudience: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$targetAudience',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: 'targetaudiences',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'audienceData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$audienceData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          audienceId: '$_id',
+          audienceName: { $ifNull: ['$audienceData.name', 'Unknown'] },
+          count: 1,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    // PROMPT ANALYTICS: Reference Usage
+    const referenceUsage = await RequestLog.aggregate([
+      { $match: { ...dateFilter, referenceIds: { $exists: true, $ne: [] } } },
+      { $unwind: '$referenceIds' },
+      {
+        $group: {
+          _id: '$referenceIds',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: 'references',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'referenceData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$referenceData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          referenceId: '$_id',
+          referenceTitle: { $ifNull: ['$referenceData.title', 'Unknown'] },
+          count: 1,
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // PROMPT ANALYTICS: Token Usage by Output Format
+    const tokenUsageByFormat = await RequestLog.aggregate([
+      { $match: { ...dateFilter, outputFormat: { $exists: true, $ne: null }, 'modelMeta.totalTokens': { $exists: true } } },
+      {
+        $group: {
+          _id: '$outputFormat',
+          totalTokens: { $sum: '$modelMeta.totalTokens' },
+          avgTokens: { $avg: '$modelMeta.totalTokens' },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: 'outputformats',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'formatData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$formatData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          formatId: '$_id',
+          formatName: { $ifNull: ['$formatData.name', 'Unknown'] },
+          totalTokens: 1,
+          avgTokens: { $ifNull: ['$avgTokens', 0] },
+          count: 1,
+        },
+      },
+      { $sort: { totalTokens: -1 } },
+    ]);
+
     res.json({
       summary: {
         totalRequests,
@@ -251,6 +403,38 @@ router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
         date: item._id,
         count: item.count,
       })),
+      // PROMPT ANALYTICS
+      promptAnalytics: {
+        outputFormatUsage: outputFormatUsage.map(item => ({
+          formatId: item.formatId?.toString(),
+          formatName: item.formatName,
+          count: item.count,
+          avgTokens: Math.round(item.avgTokens || 0),
+        })),
+        researchModeStats: {
+          enabled: researchModeStats.find(s => s._id === true)?.count || 0,
+          disabled: researchModeStats.find(s => s._id === false)?.count || 0,
+          enabledAvgTokens: Math.round(researchModeStats.find(s => s._id === true)?.avgTokens || 0),
+          disabledAvgTokens: Math.round(researchModeStats.find(s => s._id === false)?.avgTokens || 0),
+        },
+        targetAudienceUsage: targetAudienceUsage.map(item => ({
+          audienceId: item.audienceId?.toString(),
+          audienceName: item.audienceName,
+          count: item.count,
+        })),
+        referenceUsage: referenceUsage.map(item => ({
+          referenceId: item.referenceId?.toString(),
+          referenceTitle: item.referenceTitle,
+          count: item.count,
+        })),
+        tokenUsageByFormat: tokenUsageByFormat.map(item => ({
+          formatId: item.formatId?.toString(),
+          formatName: item.formatName,
+          totalTokens: item.totalTokens,
+          avgTokens: Math.round(item.avgTokens || 0),
+          count: item.count,
+        })),
+      },
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
