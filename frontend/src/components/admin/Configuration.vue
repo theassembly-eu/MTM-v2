@@ -116,6 +116,30 @@
             ></textarea>
             <small class="form-hint">Voeg plaatsen toe, één per regel. Deze worden gebruikt voor contextuele vereenvoudiging.</small>
           </div>
+          <!-- Output Format Specific Fields -->
+          <div v-if="activeTab === 'formats'" class="format-config-section">
+            <h4 class="section-title">Format Configuratie</h4>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  v-model="itemForm.requiresImageSuggestion"
+                />
+                <span>Vereist Image Suggestion</span>
+              </label>
+              <small class="form-hint">Wanneer ingeschakeld, zal de AI een image suggestion sectie toevoegen aan de output (bijv. voor Instagram posts).</small>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  v-model="itemForm.requiresStructuredOutput"
+                />
+                <span>Vereist Gestructureerde Output</span>
+              </label>
+              <small class="form-hint">Wanneer ingeschakeld, moet de output een specifieke structuur volgen (Emotional Core Message, Problem Statement, etc.).</small>
+            </div>
+          </div>
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="btn-cancel">Annuleren</button>
             <button type="submit" :disabled="saving" class="btn-primary">
@@ -164,6 +188,8 @@ const itemForm = ref({
   code: '',
   description: '',
   places: [],
+  requiresImageSuggestion: false,
+  requiresStructuredOutput: true,
 });
 
 const placesText = ref('');
@@ -235,6 +261,10 @@ async function fetchData() {
       id: f._id || f.id,
       name: f.name,
       description: f.description || '',
+      requiresImageSuggestion: f.requiresImageSuggestion || false,
+      requiresStructuredOutput: f.requiresStructuredOutput !== undefined ? f.requiresStructuredOutput : true,
+      outputStructure: f.outputStructure || { sections: [] },
+      behavioralRules: f.behavioralRules || [],
     }));
 
     languages.value = languagesRes.data.map(l => ({
@@ -259,6 +289,8 @@ function showCreateModal(type) {
     code: '',
     description: '',
     places: [],
+    requiresImageSuggestion: false,
+    requiresStructuredOutput: true,
   };
   placesText.value = '';
   showModal.value = true;
@@ -279,6 +311,8 @@ function editItem(item) {
     code: item.code || '',
     description: item.description || '',
     places: item.places || [],
+    requiresImageSuggestion: item.requiresImageSuggestion || false,
+    requiresStructuredOutput: item.requiresStructuredOutput !== undefined ? item.requiresStructuredOutput : true,
   };
   placesText.value = (item.places || []).join('\n');
   showModal.value = true;
@@ -293,6 +327,8 @@ function closeModal() {
     code: '',
     description: '',
     places: [],
+    requiresImageSuggestion: false,
+    requiresStructuredOutput: true,
   };
   placesText.value = '';
 }
@@ -439,6 +475,35 @@ onMounted(() => {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
   font-style: italic;
+}
+
+.format-config-section {
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.section-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
 }
 
 /* Reuse other styles from TeamsProjects */
