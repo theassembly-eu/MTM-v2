@@ -89,6 +89,11 @@
       <PromptTemplatesTab />
     </div>
 
+    <!-- System Prompt Templates -->
+    <div v-if="activeTab === 'system-templates'" class="config-section">
+      <SystemPromptTemplatesTab />
+    </div>
+
     <!-- Create/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal" @click.stop>
@@ -158,6 +163,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import ConfigList from './ConfigList.vue';
 import PromptTemplatesTab from './PromptTemplatesTab.vue';
+import SystemPromptTemplatesTab from './SystemPromptTemplatesTab.vue';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -166,7 +172,7 @@ const error = ref(null);
 const getInitialTab = () => {
   if (typeof window !== 'undefined' && window.location.hash) {
     const hash = window.location.hash.replace('#', '');
-    if (['audiences', 'formats', 'languages', 'lvls', 'templates'].includes(hash)) {
+    if (['audiences', 'formats', 'languages', 'lvls', 'templates', 'system-templates'].includes(hash)) {
       return hash;
     }
   }
@@ -200,6 +206,7 @@ const tabs = [
   { id: 'formats', label: 'Output Formaten' },
   { id: 'languages', label: 'Talen' },
   { id: 'templates', label: 'Prompt Templates' },
+  { id: 'system-templates', label: 'Systeem Templates' },
 ];
 
 function getItemTypeLabel() {
