@@ -13,6 +13,7 @@ import Language from '../models/Language.js';
 import RequestLog from '../models/RequestLog.js';
 import ResearchCache from '../models/ResearchCache.js';
 import { authenticate } from '../middleware/auth.js';
+import { buildPromptFromTemplates } from '../utils/promptTemplateEngine.js';
 
 const router = express.Router();
 const openai = new OpenAI({
@@ -402,15 +403,15 @@ function trackPromptSections({
 }
 
 // ============================================================================
-// MAIN PROMPT BUILDER
+// CONTEXT PREPARATION FOR TEMPLATES
 // ============================================================================
 
 /**
- * Build enriched prompt by assembling all sections
+ * Prepare context object for template engine
  * @param {Object} params - Prompt building parameters
- * @returns {Object} Object with { prompt: string, sections: Array }
+ * @returns {Object} Context object for templates
  */
-function buildPrompt({
+function prepareTemplateContext({
   text,
   lvl,
   place,
@@ -424,7 +425,223 @@ function buildPrompt({
   dictionaryTerms,
   projectName,
 }) {
-  // Build prompt sections using modular functions
+  // Build format section to get processed data
+  const formatSection = buildOutputFormatSection(outputFormat);
+  const requiresImageSuggestion = formatSection.requiresImageSuggestion;
+  
+  // Prepare LVL style
+  let lvlStyle = '';
+  if (lvl && lvlStyleMap[lvl.code]) {
+    lvlStyle = lvlStyleMap[lvl.code];
+  }
+  
+  // Prepare target audience instruction
+  let targetAudienceInstruction = '';
+  if (targetAudience) {
+    switch (targetAudience.name) {
+      case 'Algemeen':
+        targetAudienceInstruction = 'for a broad audience, like "your uncle at the family party."';
+        break;
+      case 'Jongeren':
+        targetAudienceInstruction = 'for a 20-year-old audience, using modern, engaging, and slightly informal language, including relevant slang or expressions where appropriate, but maintaining clarity.';
+        break;
+      case 'Ouderen':
+        targetAudienceInstruction = 'for an elderly audience, using formal, respectful, and very clear language, avoiding jargon and complex sentence structures.';
+        break;
+    }
+  }
+  
+  // Prepare format instruction
+  let formatInstruction = '';
+  let listAvoidance = 'ABSOLUTELY DO NOT use numbered lists or bullet points.';
+  if (outputFormat) {
+    if (outputFormat.description && outputFormat.description.trim().length > 0) {
+      formatInstruction = outputFormat.description;
+    } else {
+      switch (outputFormat.name) {
+        case 'Samenvatting':
+          formatInstruction = 'Provide a concise summary.';
+          break;
+        case 'Korte versie (Instagram-achtig)':
+          formatInstruction = 'Provide a very short, engaging, and attention-grabbing text suitable for Instagram. Use relevant hashtags and emojis.';
+          break;
+        case 'Medium versie (LinkedIn-achtig)':
+          formatInstruction = 'Provide a professional, informative, and engaging medium-length text suitable for LinkedIn, focusing on key takeaways and a clear call to action if applicable.';
+          break;
+        case 'Opsommingstekens':
+          formatInstruction = 'Provide the output in bullet points.';
+          listAvoidance = '';
+          break;
+      }
+    }
+    
+    // Handle behavioral rules
+    if (outputFormat.behavioralRules && Array.isArray(outputFormat.behavioralRules) && outputFormat.behavioralRules.length > 0) {
+      outputFormat.behavioralRules.forEach(rule => {
+        if (rule.rule === 'ALLOW_BULLET_POINTS' || rule.rule === 'ALLOW_LISTS') {
+          listAvoidance = '';
+        }
+      });
+    } else if (outputFormat.name === 'Opsommingstekens') {
+      listAvoidance = '';
+    }
+  }
+  
+  // Prepare image suggestion reminders
+  let imageSuggestionReminder = '';
+  let imageSuggestionFinalReminder = '';
+  if (requiresImageSuggestion) {
+    imageSuggestionReminder = '\nIMPORTANT: This format REQUIRES an "Image Suggestion" section. You MUST include this section in your response after the simplified text. This is mandatory, not optional.\n\n';
+    imageSuggestionFinalReminder = 'REMINDER: Remember to include the "Image Suggestion" section in your response. This is a mandatory requirement.\n\n';
+  }
+  
+  // Prepare reference list
+  let referenceList = '';
+  if (referenceSummaries && referenceSummaries.length > 0) {
+    referenceSummaries.forEach((ref, index) => {
+      referenceList += `${index + 1}. ${ref.title}: ${ref.summary}\n`;
+    });
+  }
+  
+  // Prepare dictionary list
+  let dictionaryList = '';
+  if (dictionaryTerms && dictionaryTerms.length > 0) {
+    dictionaryTerms.forEach(entry => {
+      dictionaryList += `- ${entry.originalTerm}: ${entry.simplifiedTerm}\n`;
+    });
+  }
+  
+  // Prepare structure parts
+  let structureParts = [
+    'Emotional Core Message: Start with a strong, emotional core message about people.',
+    'Problem Statement: Name the problem briefly and clearly.',
+    'Concluding Message: Conclude with a clear, impactful message.',
+    `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
+  ].join('\n---\n');
+  
+  if (requiresImageSuggestion) {
+    structureParts += '\n---\nImage Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]';
+  }
+  
+  let imageSuggestionReminderForStructure = '';
+  if (requiresImageSuggestion) {
+    imageSuggestionReminderForStructure = `CRITICAL REMINDER: You MUST include the "Image Suggestion" section in your response. This is a mandatory requirement. Do not skip this section.\n\n`;
+  }
+  
+  // Prepare keywords strings
+  const includeKeywordsStr = includeKeywords && includeKeywords.length > 0 ? includeKeywords.join(', ') : '';
+  const avoidKeywordsStr = avoidKeywords && avoidKeywords.length > 0 ? avoidKeywords.join(', ') : '';
+  
+  return {
+    context: {
+      language,
+      lvl,
+      lvlStyle,
+      place,
+      targetAudience,
+      targetAudienceInstruction,
+      outputFormat,
+      formatInstruction,
+      listAvoidance,
+      imageSuggestionReminder,
+      imageSuggestionFinalReminder,
+      imageSuggestionReminderForStructure,
+      geoContext,
+      projectName,
+      includeKeywords: includeKeywordsStr,
+      avoidKeywords: avoidKeywordsStr,
+      referenceSummaries,
+      referenceList,
+      dictionaryTerms,
+      dictionaryList,
+      structureParts,
+      textToSimplify: text,
+    },
+    requiresImageSuggestion,
+  };
+}
+
+// ============================================================================
+// MAIN PROMPT BUILDER
+// ============================================================================
+
+/**
+ * Build enriched prompt by assembling all sections
+ * Tries to use system templates first, falls back to hardcoded functions
+ * @param {Object} params - Prompt building parameters
+ * @returns {Promise<Object>} Object with { prompt: string, sections: Array }
+ */
+async function buildPrompt({
+  text,
+  lvl,
+  place,
+  targetAudience,
+  outputFormat,
+  language,
+  geoContext,
+  includeKeywords,
+  avoidKeywords,
+  referenceSummaries,
+  dictionaryTerms,
+  projectName,
+}) {
+  // Prepare context for templates
+  const { context, requiresImageSuggestion } = prepareTemplateContext({
+    text,
+    lvl,
+    place,
+    targetAudience,
+    outputFormat,
+    language,
+    geoContext,
+    includeKeywords,
+    avoidKeywords,
+    referenceSummaries,
+    dictionaryTerms,
+    projectName,
+  });
+  
+  // Store flag for later use
+  if (outputFormat) {
+    outputFormat.requiresImageSuggestion = requiresImageSuggestion;
+  }
+  
+  // Try to use templates first (if USE_TEMPLATES env var is set or templates exist)
+  const useTemplates = process.env.USE_PROMPT_TEMPLATES === 'true';
+  
+  if (useTemplates) {
+    try {
+      const templateResult = await buildPromptFromTemplates(context);
+      
+      // If templates returned a valid prompt, use it
+      if (templateResult.prompt && templateResult.prompt.trim().length > 0) {
+        // Merge template sections with tracked sections
+        const sections = trackPromptSections({
+          lvl,
+          place,
+          targetAudience,
+          outputFormat,
+          geoContext,
+          includeKeywords,
+          avoidKeywords,
+          referenceSummaries,
+          dictionaryTerms,
+          projectName,
+        });
+        
+        return {
+          prompt: templateResult.prompt,
+          sections,
+          source: 'templates', // Indicate that templates were used
+        };
+      }
+    } catch (error) {
+      // If template building fails, log and fall back to hardcoded functions
+      console.warn('Failed to build prompt from templates, falling back to hardcoded functions:', error.message);
+    }
+  }
+  
+  // Fallback to hardcoded functions (current implementation)
   let prompt = '';
   
   // 1. Role Definition
@@ -439,11 +656,6 @@ function buildPrompt({
   // 4. Output Format (returns section and requiresImageSuggestion flag)
   const formatSection = buildOutputFormatSection(outputFormat);
   prompt += formatSection.section;
-  
-  // Store flag for later use in structured output
-  if (outputFormat) {
-    outputFormat.requiresImageSuggestion = formatSection.requiresImageSuggestion;
-  }
   
   // 5. Geographic Context
   prompt += buildGeographicContextSection(geoContext);
@@ -486,6 +698,7 @@ function buildPrompt({
   return {
     prompt,
     sections,
+    source: 'hardcoded', // Indicate that hardcoded functions were used
   };
 }
 
@@ -606,7 +819,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       promptSections = [{ type: 'custom', included: true }];
     } else {
       // Build standard enriched prompt
-      const promptResult = buildPrompt({
+      const promptResult = await buildPrompt({
         text,
         lvl,
         place,
@@ -982,7 +1195,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       promptSections = [{ type: 'custom', included: true }];
     } else {
       // Build standard enriched prompt
-      const promptResult = buildPrompt({
+      const promptResult = await buildPrompt({
         text,
         lvl,
         place,
