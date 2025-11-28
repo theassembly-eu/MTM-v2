@@ -42,6 +42,38 @@
             </select>
           </div>
 
+          <!-- Template Selection (Show when multiple templates available) -->
+          <div v-if="hasMultipleTemplates" class="form-group template-selection-prominent">
+            <label for="template-select">
+              Prompt Template 
+              <span class="template-count-badge">{{ availableTemplates.length }} beschikbaar</span>
+            </label>
+            <select 
+              id="template-select" 
+              v-model="selectedTemplateId" 
+              @change="onTemplateSelect"
+              :disabled="loading || loadingTemplates"
+              class="template-select"
+            >
+              <option value="">-- Standaard prompt gebruiken --</option>
+              <option v-for="template in availableTemplates" :key="template.id" :value="template.id">
+                {{ template.name }} 
+                <span v-if="template.useComponents">🧩</span>
+                <span v-else>📝</span>
+                ({{ template.scope }})
+              </option>
+            </select>
+            <p v-if="selectedTemplate" class="template-hint">
+              <span v-if="selectedTemplate.useComponents">
+                🧩 Component-gebaseerde template ({{ selectedTemplate.componentReferences?.length || 0 }} componenten)
+              </span>
+              <span v-else>
+                📝 Volledige tekst template
+              </span>
+              <span v-if="selectedTemplate.description"> - {{ selectedTemplate.description }}</span>
+            </p>
+          </div>
+
           <div class="form-group">
             <label for="project-select">Project *</label>
             <select 
@@ -635,6 +667,35 @@ const selectedLanguage = computed(() => {
   return languages.value.find(l => l.id === selectedLanguageId.value);
 });
 
+const availableTemplates = computed(() => {
+  if (!selectedTeamId.value) return [];
+  
+  // Filter templates based on scope and team/project
+  return templates.value.filter(template => {
+    // Global templates are always available
+    if (template.scope === 'GLOBAL') return true;
+    
+    // Team templates must match selected team
+    if (template.scope === 'TEAM') {
+      const templateTeamId = template.team?._id || template.team || template.teamId;
+      return String(templateTeamId) === String(selectedTeamId.value);
+    }
+    
+    // Project templates must match selected project
+    if (template.scope === 'PROJECT') {
+      if (!selectedProjectId.value) return false;
+      const templateProjectId = template.project?._id || template.project || template.projectId;
+      return String(templateProjectId) === String(selectedProjectId.value);
+    }
+    
+    return false;
+  });
+});
+
+const hasMultipleTemplates = computed(() => {
+  return availableTemplates.value.length > 1;
+});
+
 const isFormValid = computed(() => {
   return selectedTeamId.value && 
          selectedProjectId.value && 
@@ -853,14 +914,20 @@ function onTeamChange() {
   selectedProjectId.value = '';
   selectedLvlId.value = '';
   selectedReferenceIds.value = [];
+  selectedTemplateId.value = ''; // Reset template selection
+  selectedTemplate.value = null;
   fetchProjects();
+  fetchTemplates(); // Refresh templates when team changes
 }
 
 function onProjectChange() {
   selectedLvlId.value = '';
   selectedPlace.value = '';
   selectedReferenceIds.value = [];
+  selectedTemplateId.value = ''; // Reset template selection
+  selectedTemplate.value = null;
   fetchReferences();
+  fetchTemplates(); // Refresh templates when project changes
 }
 
 function onLvlChange() {
@@ -879,7 +946,9 @@ async function fetchTemplates() {
       id: t._id || t.id,
       name: t.name,
       description: t.description,
-      prompt: t.prompt,
+      prompt: t.prompt || '',
+      useComponents: t.useComponents || false,
+      componentReferences: t.componentReferences || [],
       scope: t.scope,
       team: t.team,
       project: t.project,
@@ -1081,8 +1150,11 @@ async function handleSimplify() {
       referenceIds: selectedReferenceIds.value.length > 0 ? selectedReferenceIds.value : undefined,
     };
 
-    // Add custom prompt if generated and user wants to use it
-    if (useCustomPrompt.value && generatedPrompt.value) {
+    // Add template ID if a template is selected (takes priority over custom prompt)
+    if (selectedTemplateId.value) {
+      requestData.templateId = selectedTemplateId.value;
+    } else if (useCustomPrompt.value && generatedPrompt.value) {
+      // Add custom prompt if generated and user wants to use it (only if no template selected)
       requestData.customPrompt = generatedPrompt.value;
     }
 
@@ -1814,6 +1886,42 @@ onMounted(async () => {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
   margin-right: var(--spacing-2);
+}
+
+/* Template Selection Styles */
+.template-selection-prominent {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.template-count-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  margin-left: var(--spacing-2);
+}
+
+.template-select {
+  width: 100%;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  background: var(--color-bg-primary);
+}
+
+.template-hint {
+  margin-top: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 @media (max-width: 768px) {

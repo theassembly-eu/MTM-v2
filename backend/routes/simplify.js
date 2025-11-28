@@ -16,6 +16,8 @@ import ABTest from '../models/ABTest.js';
 import { authenticate } from '../middleware/auth.js';
 import { buildPromptFromTemplates } from '../utils/promptTemplateEngine.js';
 import { sanitizeInputText, validateInputText } from '../utils/sanitizeInput.js';
+import { assemblePromptTemplate } from '../utils/assemblePromptTemplate.js';
+import PromptTemplate from '../models/PromptTemplate.js';
 
 const router = express.Router();
 const openai = new OpenAI({
@@ -772,6 +774,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       avoidKeywords,
       referenceIds,
       customPrompt,
+      templateId,
     } = req.body;
 
     // Validate required fields
@@ -834,7 +837,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       simplifiedTerm: entry.simplifiedTerm,
     }));
 
-    // Use custom prompt if provided, otherwise build standard prompt
+    // Use template, custom prompt, or build standard prompt
     let prompt;
     let promptSections = [];
     let promptMeta = {
@@ -844,7 +847,75 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       sanitizedPrompt: '',
     };
     
-    if (customPrompt) {
+    // Priority: templateId > customPrompt > standard prompt
+    if (templateId) {
+      try {
+        // Fetch the template
+        const promptTemplate = await PromptTemplate.findById(templateId);
+        if (!promptTemplate) {
+          return res.status(404).json({ error: 'Prompt template not found' });
+        }
+
+        // Check permissions
+        if (promptTemplate.scope === 'GLOBAL' && req.user.role !== 'SUPER_ADMIN') {
+          return res.status(403).json({ error: 'Not authorized to use global templates' });
+        }
+
+        if (promptTemplate.scope === 'TEAM' && promptTemplate.team) {
+          if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN' && req.user.role !== 'TEAM_LEADER') {
+            if (!req.user.teams.includes(promptTemplate.team.toString())) {
+              return res.status(403).json({ error: 'Not authorized to use this template' });
+            }
+          }
+        }
+
+        // Prepare context for template assembly
+        const templateContext = {
+          language: language.name,
+          lvl: {
+            name: lvl.name,
+            code: lvl.code,
+          },
+          place: place || '',
+          targetAudience: targetAudience?.name || '',
+          outputFormat: outputFormat?.name || '',
+          geoContext: geoContext || '',
+          projectName: project.name,
+          includeKeywords: includeKeywords?.join(', ') || '',
+          avoidKeywords: avoidKeywords?.join(', ') || '',
+          referenceSummaries: referenceSummaries || [],
+          dictionaryTerms: dictionaryTerms || [],
+          textToSimplify: sanitizedText,
+        };
+
+        // Assemble template (handles both component-based and full-text)
+        const assembledResult = await assemblePromptTemplate(promptTemplate, templateContext);
+        prompt = assembledResult.prompt;
+        
+        // Add the text to simplify if not already included
+        if (!prompt.includes(sanitizedText)) {
+          prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${sanitizedText}"`;
+        }
+
+        // Track that we used a template
+        promptSections = [{ type: 'template', included: true, templateId: templateId, source: assembledResult.source }];
+
+        // Record template usage
+        promptTemplate.usageCount = (promptTemplate.usageCount || 0) + 1;
+        promptTemplate.lastUsed = new Date();
+        await promptTemplate.save().catch(err => {
+          console.error('Error recording template usage:', err);
+          // Don't fail the request if usage recording fails
+        });
+      } catch (err) {
+        console.error('Error using template:', err);
+        // Fall back to standard prompt if template assembly fails
+        // Continue with standard prompt building below
+      }
+    }
+    
+    // If template wasn't used or failed, check for custom prompt
+    if (!prompt && customPrompt) {
       // If custom prompt is provided, sanitize it as well
       const sanitizedCustomPrompt = sanitizeInputText(customPrompt);
       prompt = sanitizedCustomPrompt;
@@ -853,7 +924,10 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       }
       // For custom prompts, we don't track sections (they're custom)
       promptSections = [{ type: 'custom', included: true }];
-    } else {
+    }
+    
+    // If neither template nor custom prompt, build standard prompt
+    if (!prompt) {
       // Build standard enriched prompt
       const promptResult = await buildPrompt({
         text,
@@ -1243,7 +1317,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       simplifiedTerm: entry.simplifiedTerm,
     }));
 
-    // Use custom prompt if provided, otherwise build standard prompt
+    // Use template, custom prompt, or build standard prompt
     let prompt;
     let promptSections = [];
     let promptMeta = {
@@ -1253,7 +1327,75 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       sanitizedPrompt: '',
     };
     
-    if (customPrompt) {
+    // Priority: templateId > customPrompt > standard prompt
+    if (templateId) {
+      try {
+        // Fetch the template
+        const promptTemplate = await PromptTemplate.findById(templateId);
+        if (!promptTemplate) {
+          return res.status(404).json({ error: 'Prompt template not found' });
+        }
+
+        // Check permissions
+        if (promptTemplate.scope === 'GLOBAL' && req.user.role !== 'SUPER_ADMIN') {
+          return res.status(403).json({ error: 'Not authorized to use global templates' });
+        }
+
+        if (promptTemplate.scope === 'TEAM' && promptTemplate.team) {
+          if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN' && req.user.role !== 'TEAM_LEADER') {
+            if (!req.user.teams.includes(promptTemplate.team.toString())) {
+              return res.status(403).json({ error: 'Not authorized to use this template' });
+            }
+          }
+        }
+
+        // Prepare context for template assembly
+        const templateContext = {
+          language: language.name,
+          lvl: {
+            name: lvl.name,
+            code: lvl.code,
+          },
+          place: place || '',
+          targetAudience: targetAudience?.name || '',
+          outputFormat: outputFormat?.name || '',
+          geoContext: geoContext || '',
+          projectName: project.name,
+          includeKeywords: includeKeywords?.join(', ') || '',
+          avoidKeywords: avoidKeywords?.join(', ') || '',
+          referenceSummaries: referenceSummaries || [],
+          dictionaryTerms: dictionaryTerms || [],
+          textToSimplify: sanitizedText,
+        };
+
+        // Assemble template (handles both component-based and full-text)
+        const assembledResult = await assemblePromptTemplate(promptTemplate, templateContext);
+        prompt = assembledResult.prompt;
+        
+        // Add the text to simplify if not already included
+        if (!prompt.includes(sanitizedText)) {
+          prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${sanitizedText}"`;
+        }
+
+        // Track that we used a template
+        promptSections = [{ type: 'template', included: true, templateId: templateId, source: assembledResult.source }];
+
+        // Record template usage
+        promptTemplate.usageCount = (promptTemplate.usageCount || 0) + 1;
+        promptTemplate.lastUsed = new Date();
+        await promptTemplate.save().catch(err => {
+          console.error('Error recording template usage:', err);
+          // Don't fail the request if usage recording fails
+        });
+      } catch (err) {
+        console.error('Error using template:', err);
+        // Fall back to standard prompt if template assembly fails
+        // Continue with standard prompt building below
+      }
+    }
+    
+    // If template wasn't used or failed, check for custom prompt
+    if (!prompt && customPrompt) {
       const sanitizedCustomPrompt = sanitizeInputText(customPrompt);
       prompt = sanitizedCustomPrompt;
       if (!prompt.includes(sanitizedText)) {
@@ -1261,7 +1403,10 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       }
       // For custom prompts, we don't track sections (they're custom)
       promptSections = [{ type: 'custom', included: true }];
-    } else {
+    }
+    
+    // If neither template nor custom prompt, build standard prompt
+    if (!prompt) {
       // Build standard enriched prompt
       const promptResult = await buildPrompt({
         text: sanitizedText,
