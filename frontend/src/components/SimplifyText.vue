@@ -971,11 +971,28 @@ function onTemplateSelect() {
   selectedTemplate.value = templates.value.find(t => t.id === selectedTemplateId.value);
 }
 
-function useTemplatePrompt() {
+async function useTemplatePrompt() {
   if (!selectedTemplate.value) return;
   
-  // Set the generated prompt to the template's prompt
-  generatedPrompt.value = selectedTemplate.value.prompt;
+  // For component-based templates, we need to assemble them
+  if (selectedTemplate.value.useComponents && selectedTemplate.value.componentReferences?.length > 0) {
+    try {
+      // Use the preview endpoint to assemble the template
+      const response = await axios.post('/api/prompt-templates/preview', {
+        useComponents: true,
+        componentReferences: selectedTemplate.value.componentReferences,
+      });
+      generatedPrompt.value = response.data.prompt;
+    } catch (err) {
+      console.error('Error assembling template:', err);
+      error.value = 'Fout bij het samenstellen van de template';
+      return;
+    }
+  } else {
+    // For full-text templates, use the prompt directly
+    generatedPrompt.value = selectedTemplate.value.prompt || '';
+  }
+  
   useCustomPrompt.value = true;
   
   // Record usage
