@@ -1054,6 +1054,9 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       message: error.message,
       name: error.name,
       code: error.code,
+      userId: req.user?.id,
+      teamId: req.body?.teamId,
+      projectId: req.body?.projectId,
     });
     
     // Try fallback to base prompt if enriched prompt fails
