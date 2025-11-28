@@ -2,6 +2,7 @@ import express from 'express';
 import SystemPromptTemplate from '../models/SystemPromptTemplate.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roles.js';
+import { validateTemplate } from '../utils/promptTemplateEngine.js';
 
 const router = express.Router();
 
@@ -54,6 +55,15 @@ router.post('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
 
     if (!name || !type || !content) {
       return res.status(400).json({ error: 'Name, type, and content are required' });
+    }
+
+    // Validate template
+    const validation = validateTemplate({ name, type, content, variables: variables || [] });
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: 'Template validation failed', 
+        details: validation.errors 
+      });
     }
 
     const template = await SystemPromptTemplate.create({
@@ -110,6 +120,20 @@ router.put('/:id', authenticate, requireRole('SUPER_ADMIN'), async (req, res) =>
     if (version !== undefined) template.version = version;
     if (isActive !== undefined) template.isActive = isActive;
     if (metadata !== undefined) template.metadata = { ...template.metadata, ...metadata };
+
+    // Validate template before saving
+    const validation = validateTemplate({
+      name: template.name,
+      type: template.type,
+      content: template.content,
+      variables: template.variables || [],
+    });
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: 'Template validation failed', 
+        details: validation.errors 
+      });
+    }
 
     await template.save();
     res.json(template);
