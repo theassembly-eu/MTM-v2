@@ -352,6 +352,7 @@
             </div>
           </div>
           </div>
+          </div>
 
           <!-- AI Prompt Generator -->
           <div class="sub-section">
