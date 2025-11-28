@@ -134,8 +134,10 @@ const abTestSchema = new mongoose.Schema({
       },
       userRatings: [{
         rating: Number,
-        requestId: mongoose.Schema.Types.ObjectId,
-        ref: 'RequestLog',
+        requestId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'RequestLog',
+        },
       }],
       avgRating: {
         type: Number,
