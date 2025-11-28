@@ -201,9 +201,11 @@ app.use('/api/simplify', simplifyRouter);
 app.use('/api/analytics', analyticsRouter);
 import promptsRouter from './routes/prompts.js';
 import promptTemplatesRouter from './routes/promptTemplates.js';
+import systemPromptTemplatesRouter from './routes/systemPromptTemplates.js';
 
 app.use('/api/prompts', promptsRouter);
 app.use('/api/prompt-templates', promptTemplatesRouter);
+app.use('/api/system-prompt-templates', systemPromptTemplatesRouter);
 
 // Temporary seed endpoint (REMOVE AFTER FIRST USE!)
 // This allows seeding the database via API call after deployment
