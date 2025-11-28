@@ -208,6 +208,9 @@ app.use('/api/prompts', promptsRouter);
 app.use('/api/prompt-templates', promptTemplatesRouter);
 app.use('/api/system-prompt-templates', systemPromptTemplatesRouter);
 app.use('/api/migrations', migrationsRouter);
+import abTestsRouter from './routes/abTests.js';
+
+app.use('/api/ab-tests', abTestsRouter);
 
 // Temporary seed endpoint (REMOVE AFTER FIRST USE!)
 // This allows seeding the database via API call after deployment

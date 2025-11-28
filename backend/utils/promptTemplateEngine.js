@@ -1,4 +1,5 @@
 import SystemPromptTemplate from '../models/SystemPromptTemplate.js';
+import ABTest from '../models/ABTest.js';
 
 /**
  * Prompt Template Engine
@@ -171,11 +172,59 @@ function getTemplateVersion(template, version = null) {
 }
 
 /**
+ * Get active A/B tests for templates and determine variant assignment
+ * @param {Array} templateIds - Array of template IDs
+ * @returns {Object} Object mapping template IDs to variant assignments
+ */
+async function getABTestAssignments(templateIds) {
+  if (!templateIds || templateIds.length === 0) {
+    return {};
+  }
+
+  try {
+    const activeTests = await ABTest.find({
+      templateId: { $in: templateIds },
+      status: 'ACTIVE',
+    });
+
+    const assignments = {};
+    
+    activeTests.forEach(test => {
+      // Check traffic allocation
+      const random = Math.random() * 100;
+      if (random > test.trafficAllocation) {
+        return; // Not included in test
+      }
+
+      // Assign variant based on weights
+      const variantA = test.variants.find(v => v.name === 'A');
+      const variantB = test.variants.find(v => v.name === 'B');
+      
+      if (!variantA || !variantB) return;
+
+      const variantARandom = Math.random() * 100;
+      const selectedVariant = variantARandom < variantA.weight ? 'A' : 'B';
+      
+      assignments[test.templateId.toString()] = {
+        testId: test._id.toString(),
+        variant: selectedVariant,
+        version: selectedVariant === 'A' ? variantA.version : variantB.version,
+      };
+    });
+
+    return assignments;
+  } catch (error) {
+    console.error('Error getting A/B test assignments:', error);
+    return {};
+  }
+}
+
+/**
  * Build prompt from system templates
  * @param {Object} context - Context object with all data needed for templates
  * @param {Array} templateTypes - Optional array of types to include (if not provided, includes all)
  * @param {Object} versionOverrides - Optional object mapping template names to specific versions
- * @returns {Object} Object with { prompt: string, sections: Array }
+ * @returns {Object} Object with { prompt: string, sections: Array, abTestAssignments: Object }
  */
 export async function buildPromptFromTemplates(context, templateTypes = null, versionOverrides = {}) {
   try {
@@ -202,13 +251,33 @@ export async function buildPromptFromTemplates(context, templateTypes = null, ve
     // Order by priority
     const orderedTemplates = orderTemplates(selectedTemplates);
     
+    // Check for active A/B tests
+    const templateIds = orderedTemplates.map(t => t._id);
+    const abTestAssignments = await getABTestAssignments(templateIds);
+    
     // Resolve variables and assemble prompt
     let prompt = '';
     const sections = [];
+    const abTestInfo = {};
     
     orderedTemplates.forEach(template => {
+      // Check if this template is in an A/B test
+      const templateIdStr = template._id.toString();
+      const abTestAssignment = abTestAssignments[templateIdStr];
+      
+      let requestedVersion = versionOverrides[template.name] || null;
+      
+      // If in A/B test, use the variant version
+      if (abTestAssignment) {
+        requestedVersion = abTestAssignment.version;
+        abTestInfo[template.name] = {
+          testId: abTestAssignment.testId,
+          variant: abTestAssignment.variant,
+          version: abTestAssignment.version,
+        };
+      }
+      
       // Get the appropriate version of the template
-      const requestedVersion = versionOverrides[template.name] || null;
       const templateVersion = getTemplateVersion(template, requestedVersion);
       
       const resolvedContent = resolveTemplateVariables(
@@ -230,6 +299,7 @@ export async function buildPromptFromTemplates(context, templateTypes = null, ve
     return {
       prompt,
       sections: sections.map(s => ({ type: s.type, name: s.name, version: s.version, included: s.included })),
+      abTestAssignments: abTestInfo,
     };
   } catch (error) {
     console.error('Error building prompt from templates:', error);

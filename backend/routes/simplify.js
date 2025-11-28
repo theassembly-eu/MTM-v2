@@ -12,6 +12,7 @@ import OutputFormat from '../models/OutputFormat.js';
 import Language from '../models/Language.js';
 import RequestLog from '../models/RequestLog.js';
 import ResearchCache from '../models/ResearchCache.js';
+import ABTest from '../models/ABTest.js';
 import { authenticate } from '../middleware/auth.js';
 import { buildPromptFromTemplates } from '../utils/promptTemplateEngine.js';
 
@@ -634,6 +635,7 @@ async function buildPrompt({
           prompt: templateResult.prompt,
           sections,
           source: 'templates', // Indicate that templates were used
+          abTestAssignments: templateResult.abTestAssignments || {}, // A/B test info
         };
       }
     } catch (error) {
@@ -719,6 +721,37 @@ function truncatePrompt(prompt, maxTokens = 8000) {
   // For MVP, we'll just warn and proceed (OpenAI will handle truncation)
   console.warn(`Prompt estimated at ${estimated} tokens, may exceed limits`);
   return prompt;
+}
+
+/**
+ * Update A/B test results with request data
+ * @param {Object} abTestAssignments - Object mapping template names to A/B test info
+ * @param {Object} requestData - Request data (tokens, responseTime, requestId)
+ */
+async function updateABTestResults(abTestAssignments, requestData) {
+  try {
+    // Get unique test IDs
+    const testIds = [...new Set(Object.values(abTestAssignments).map(info => info.testId))];
+    
+    for (const testId of testIds) {
+      const test = await ABTest.findById(testId);
+      if (!test || test.status !== 'ACTIVE') {
+        continue;
+      }
+
+      // Find which variant was used for this test
+      const assignment = Object.values(abTestAssignments).find(a => a.testId === testId);
+      if (!assignment) {
+        continue;
+      }
+
+      // Update results
+      await test.updateResults(assignment.variant, requestData);
+    }
+  } catch (error) {
+    console.error('Error updating A/B test results:', error);
+    throw error;
+  }
 }
 
 // POST /api/simplify - Upgraded simplification endpoint
@@ -868,6 +901,9 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       console.log('=== END PROMPT DEBUG ===');
     }
 
+    // Track start time for A/B testing
+    const startTime = Date.now();
+
     // Call OpenAI
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4',
@@ -877,6 +913,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     });
 
     const simplifiedText = completion.choices[0].message.content;
+    const responseTime = Date.now() - startTime; // in milliseconds
 
     // Extract token usage
     const usage = completion.usage || {};
@@ -909,7 +946,24 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       logData.promptMeta = promptMeta;
     }
     
+    // Add A/B test info if present
+    if (promptResult.abTestAssignments && Object.keys(promptResult.abTestAssignments).length > 0) {
+      logData.abTestInfo = promptResult.abTestAssignments;
+    }
+    
     const requestLog = await RequestLog.create(logData);
+
+    // Update A/B test results asynchronously (don't block response)
+    if (promptResult.abTestAssignments && Object.keys(promptResult.abTestAssignments).length > 0) {
+      updateABTestResults(promptResult.abTestAssignments, {
+        tokens: usage.total_tokens || 0,
+        responseTime: responseTime,
+        requestId: requestLog._id,
+      }).catch(err => {
+        console.error('Error updating A/B test results:', err);
+        // Don't fail the request if A/B test update fails
+      });
+    }
 
     // Return result
     res.json({
