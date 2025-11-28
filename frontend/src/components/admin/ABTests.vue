@@ -430,7 +430,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from '../utils/axios.js';
+import axios from 'axios';
 
 const tests = ref([]);
 const templates = ref([]);
