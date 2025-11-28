@@ -70,6 +70,48 @@ const systemPromptTemplateSchema = new mongoose.Schema({
     type: String,
     default: '1.0.0',
   },
+  // Current active version (for versioning system)
+  currentVersion: {
+    type: String,
+    default: '1.0.0',
+  },
+  // Version history - stores past versions of this template
+  versionHistory: [{
+    version: {
+      type: String,
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
+    variables: [{
+      name: String,
+      source: String,
+      required: Boolean,
+      defaultValue: String,
+    }],
+    conditions: [{
+      field: String,
+      operator: String,
+      value: mongoose.Schema.Types.Mixed,
+    }],
+    priority: Number,
+    metadata: {
+      author: String,
+      notes: String,
+      testResults: mongoose.Schema.Types.Mixed,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    changeNotes: String, // Why this version was created
+  }],
   // Whether this template is active
   isActive: {
     type: Boolean,
