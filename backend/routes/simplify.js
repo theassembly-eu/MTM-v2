@@ -15,6 +15,7 @@ import ResearchCache from '../models/ResearchCache.js';
 import ABTest from '../models/ABTest.js';
 import { authenticate } from '../middleware/auth.js';
 import { buildPromptFromTemplates } from '../utils/promptTemplateEngine.js';
+import { sanitizeInputText, validateInputText } from '../utils/sanitizeInput.js';
 
 const router = express.Router();
 const openai = new OpenAI({
@@ -844,10 +845,11 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     };
     
     if (customPrompt) {
-      // If custom prompt is provided, use it but still add the text to simplify
-      prompt = customPrompt;
-      if (!prompt.includes(text)) {
-        prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${text}"`;
+      // If custom prompt is provided, sanitize it as well
+      const sanitizedCustomPrompt = sanitizeInputText(customPrompt);
+      prompt = sanitizedCustomPrompt;
+      if (!prompt.includes(sanitizedText)) {
+        prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${sanitizedText}"`;
       }
       // For custom prompts, we don't track sections (they're custom)
       promptSections = [{ type: 'custom', included: true }];
@@ -924,7 +926,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       team: teamId,
       project: projectId,
       lvl: lvlId,
-      originalText: text,
+      originalText: sanitizedText,
       simplifiedText,
       targetAudience: targetAudienceId || null,
       outputFormat: outputFormatId || null,
@@ -1216,7 +1218,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
     
     try {
       researchResults = await performResearch({
-        query: text.substring(0, 200), // Use first 200 chars as query
+        query: sanitizedText.substring(0, 200), // Use first 200 chars as query
         keywords: includeKeywords || [],
         lvlCode: lvl.code,
         place: place,
@@ -1252,16 +1254,17 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
     };
     
     if (customPrompt) {
-      prompt = customPrompt;
-      if (!prompt.includes(text)) {
-        prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${text}"`;
+      const sanitizedCustomPrompt = sanitizeInputText(customPrompt);
+      prompt = sanitizedCustomPrompt;
+      if (!prompt.includes(sanitizedText)) {
+        prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${sanitizedText}"`;
       }
       // For custom prompts, we don't track sections (they're custom)
       promptSections = [{ type: 'custom', included: true }];
     } else {
       // Build standard enriched prompt
       const promptResult = await buildPrompt({
-        text,
+        text: sanitizedText,
         lvl,
         place,
         targetAudience,
@@ -1343,7 +1346,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       targetAudience: targetAudienceId || undefined,
       outputFormat: outputFormatId || undefined,
       language: languageId || undefined,
-      originalText: text,
+      originalText: sanitizedText,
       simplifiedText,
       geoContext: geoContext || undefined,
       includeKeywords: includeKeywords || [],
