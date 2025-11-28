@@ -71,15 +71,10 @@ function buildPrompt({
   if (lvl && lvlStyleMap[lvl.code]) {
     prompt += `Communication Level Context: ${lvlStyleMap[lvl.code]}\n\n`;
     
-    // Add places context if available
-    if (lvl.places && lvl.places.length > 0) {
-      prompt += `Available Places for this Level: ${lvl.places.join(', ')}\n`;
-      prompt += `When relevant, use local terminology, names, and context specific to these places.\n\n`;
-      
-      // If a specific place is selected, emphasize it
-      if (place && lvl.places.includes(place)) {
-        prompt += `IMPORTANT: This text is specifically for ${place}. Use local terminology, names of institutions, and context specific to ${place}. Reference local landmarks, districts, or relevant local information when appropriate.\n\n`;
-      }
+    // Only add place context if a specific place is selected
+    // Don't list all available places as it can confuse the AI
+    if (place && lvl.places && lvl.places.includes(place)) {
+      prompt += `IMPORTANT: This text is specifically for ${place}. Use local terminology, names of institutions, and context specific to ${place}. Reference local landmarks, districts, or relevant local information when appropriate.\n\n`;
     }
   }
 
@@ -133,9 +128,9 @@ function buildPrompt({
 
     // Handle format-specific behaviors (these are still based on format name)
     // These are behavioral rules, not just instructions
-    if (outputFormat.name === 'Korte versie (Instagram-achtig)' && !imageSuggestion) {
-      // Only add image suggestion if not already set from description
-      imageSuggestion = '\nSuggest a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian.';
+    if (outputFormat.name === 'Korte versie (Instagram-achtig)') {
+      // Always add image suggestion for Instagram format, make it explicit
+      imageSuggestion = '\n\nIMPORTANT: After providing the simplified text, you MUST also provide an "Image Suggestion" section with a compelling image description for this Instagram post. Make it relevant to the content and emotionally engaging. The main audience is Belgian. Format it as:\n---\nImage Suggestion: [your description here]';
     }
     
     if (outputFormat.name === 'Opsommingstekens') {
