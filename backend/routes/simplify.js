@@ -840,6 +840,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
     // Use template, custom prompt, or build standard prompt
     let prompt;
     let promptSections = [];
+    let promptSource = 'hardcoded'; // Track prompt source: 'template', 'custom', or 'hardcoded'
     let promptMeta = {
       sectionsIncluded: [],
       promptLength: 0,
@@ -1299,6 +1300,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
     // Use template, custom prompt, or build standard prompt
     let prompt;
     let promptSections = [];
+    let promptSource = 'hardcoded'; // Track prompt source: 'template', 'custom', or 'hardcoded'
     let promptMeta = {
       sectionsIncluded: [],
       promptLength: 0,
