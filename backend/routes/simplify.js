@@ -826,6 +826,10 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       return res.status(404).json({ error: 'Language not found' });
     }
 
+    // Sanitize input text
+    const sanitizedText = sanitizeInputText(text);
+    validateInputText(sanitizedText);
+
     // Build enriched prompt
     const referenceSummaries = references
       .filter(ref => ref.summary)
@@ -1268,6 +1272,10 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
     if (!language) {
       return res.status(404).json({ error: 'Language not found' });
     }
+
+    // Sanitize input text
+    const sanitizedText = sanitizeInputText(text);
+    validateInputText(sanitizedText);
 
     // Perform research
     let researchResults = null;
