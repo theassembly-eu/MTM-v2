@@ -337,13 +337,78 @@ function buildContentSection(text, language, requiresImageSuggestion = false) {
 }
 
 // ============================================================================
+// PROMPT OBSERVABILITY HELPERS
+// ============================================================================
+
+/**
+ * Sanitize prompt for logging (remove sensitive data, truncate long text)
+ * @param {string} prompt - Full prompt text
+ * @param {number} maxLength - Maximum length for sanitized prompt (default: 2000)
+ * @returns {string} Sanitized prompt
+ */
+function sanitizePromptForLogging(prompt, maxLength = 2000) {
+  if (!prompt) return '';
+  
+  let sanitized = prompt;
+  
+  // Truncate if too long (keep beginning which has instructions)
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength) + '\n\n[... truncated for logging ...]';
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Track which sections were included in the prompt
+ * @param {Object} params - Prompt building parameters
+ * @returns {Array} Array of section tracking objects
+ */
+function trackPromptSections({
+  lvl,
+  place,
+  targetAudience,
+  outputFormat,
+  geoContext,
+  includeKeywords,
+  avoidKeywords,
+  referenceSummaries,
+  dictionaryTerms,
+  projectName,
+}) {
+  const sections = [];
+  
+  sections.push({ type: 'role', included: true }); // Always included
+  sections.push({ type: 'lvlContext', included: !!(lvl && lvlStyleMap[lvl.code]) });
+  sections.push({ type: 'place', included: !!(place && lvl?.places?.includes(place)) });
+  sections.push({ type: 'targetAudience', included: !!targetAudience });
+  sections.push({ type: 'outputFormat', included: !!outputFormat });
+  sections.push({ type: 'geoContext', included: !!geoContext });
+  sections.push({ type: 'projectContext', included: !!projectName });
+  sections.push({ type: 'includeKeywords', included: !!(includeKeywords && includeKeywords.length > 0) });
+  sections.push({ type: 'avoidKeywords', included: !!(avoidKeywords && avoidKeywords.length > 0) });
+  sections.push({ type: 'references', included: !!(referenceSummaries && referenceSummaries.length > 0) });
+  sections.push({ type: 'dictionary', included: !!(dictionaryTerms && dictionaryTerms.length > 0) });
+  sections.push({ type: 'baseInstructions', included: true }); // Always included
+  sections.push({ type: 'outputStructure', included: true }); // Always included
+  sections.push({ type: 'content', included: true }); // Always included
+  
+  if (outputFormat) {
+    const formatSection = buildOutputFormatSection(outputFormat);
+    sections.push({ type: 'imageSuggestion', included: formatSection.requiresImageSuggestion });
+  }
+  
+  return sections;
+}
+
+// ============================================================================
 // MAIN PROMPT BUILDER
 // ============================================================================
 
 /**
  * Build enriched prompt by assembling all sections
  * @param {Object} params - Prompt building parameters
- * @returns {string} Complete prompt
+ * @returns {Object} Object with { prompt: string, sections: Array }
  */
 function buildPrompt({
   text,
@@ -404,7 +469,24 @@ function buildPrompt({
   // 12. Content (text to simplify)
   prompt += buildContentSection(text, language, formatSection.requiresImageSuggestion);
   
-  return prompt;
+  // Track which sections were included
+  const sections = trackPromptSections({
+    lvl,
+    place,
+    targetAudience,
+    outputFormat,
+    geoContext,
+    includeKeywords,
+    avoidKeywords,
+    referenceSummaries,
+    dictionaryTerms,
+    projectName,
+  });
+  
+  return {
+    prompt,
+    sections,
+  };
 }
 
 // Estimate token count (rough estimate: 1 token ≈ 4 characters)
@@ -506,15 +588,25 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
 
     // Use custom prompt if provided, otherwise build standard prompt
     let prompt;
+    let promptSections = [];
+    let promptMeta = {
+      sectionsIncluded: [],
+      promptLength: 0,
+      estimatedTokens: 0,
+      sanitizedPrompt: '',
+    };
+    
     if (customPrompt) {
       // If custom prompt is provided, use it but still add the text to simplify
       prompt = customPrompt;
       if (!prompt.includes(text)) {
         prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${text}"`;
       }
+      // For custom prompts, we don't track sections (they're custom)
+      promptSections = [{ type: 'custom', included: true }];
     } else {
       // Build standard enriched prompt
-      prompt = buildPrompt({
+      const promptResult = buildPrompt({
         text,
         lvl,
         place,
@@ -528,10 +620,29 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
         dictionaryTerms,
         projectName: project.name,
       });
+      prompt = promptResult.prompt;
+      promptSections = promptResult.sections;
     }
 
     // Truncate if needed
     prompt = truncatePrompt(prompt);
+    
+    // Calculate prompt metadata
+    promptMeta.promptLength = prompt.length;
+    promptMeta.estimatedTokens = estimateTokens(prompt);
+    promptMeta.sectionsIncluded = promptSections;
+    promptMeta.sanitizedPrompt = sanitizePromptForLogging(prompt);
+    
+    // Log prompt for debugging (only if LOG_PROMPTS env var is set)
+    if (process.env.LOG_PROMPTS === 'true') {
+      console.log('=== PROMPT DEBUG INFO ===');
+      console.log('Sections included:', promptSections.filter(s => s.included).map(s => s.type).join(', '));
+      console.log('Prompt length:', promptMeta.promptLength, 'chars');
+      console.log('Estimated tokens:', promptMeta.estimatedTokens);
+      console.log('Sanitized prompt (first 2000 chars):');
+      console.log(promptMeta.sanitizedPrompt);
+      console.log('=== END PROMPT DEBUG ===');
+    }
 
     // Call OpenAI
     const completion = await openai.chat.completions.create({
@@ -567,6 +678,7 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
       },
+      promptMeta: promptMeta,
     });
 
     // Return result
@@ -829,14 +941,24 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
 
     // Use custom prompt if provided, otherwise build standard prompt
     let prompt;
+    let promptSections = [];
+    let promptMeta = {
+      sectionsIncluded: [],
+      promptLength: 0,
+      estimatedTokens: 0,
+      sanitizedPrompt: '',
+    };
+    
     if (customPrompt) {
       prompt = customPrompt;
       if (!prompt.includes(text)) {
         prompt += `\n\nPlease simplify the following ${language.name} text and respond in ${language.name}:\n\n"${text}"`;
       }
+      // For custom prompts, we don't track sections (they're custom)
+      promptSections = [{ type: 'custom', included: true }];
     } else {
       // Build standard enriched prompt
-      prompt = buildPrompt({
+      const promptResult = buildPrompt({
         text,
         lvl,
         place,
@@ -850,6 +972,8 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
         dictionaryTerms,
         projectName: project.name,
       });
+      prompt = promptResult.prompt;
+      promptSections = promptResult.sections;
     }
 
     // Add research context to prompt
@@ -859,10 +983,29 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       prompt += researchResults.aggregatedContext;
       prompt += `\n\nUse this research context to enhance the simplification while maintaining accuracy. Cite sources when using information from research.\n`;
       prompt += `--- END RESEARCH CONTEXT ---\n\n`;
+      // Add research context to sections tracking
+      promptSections.push({ type: 'researchContext', included: true });
     }
 
     // Truncate if needed
     prompt = truncatePrompt(prompt);
+    
+    // Calculate prompt metadata
+    promptMeta.promptLength = prompt.length;
+    promptMeta.estimatedTokens = estimateTokens(prompt);
+    promptMeta.sectionsIncluded = promptSections;
+    promptMeta.sanitizedPrompt = sanitizePromptForLogging(prompt);
+    
+    // Log prompt for debugging (only if LOG_PROMPTS env var is set)
+    if (process.env.LOG_PROMPTS === 'true') {
+      console.log('=== PROMPT DEBUG INFO (RESEARCH MODE) ===');
+      console.log('Sections included:', promptSections.filter(s => s.included).map(s => s.type).join(', '));
+      console.log('Prompt length:', promptMeta.promptLength, 'chars');
+      console.log('Estimated tokens:', promptMeta.estimatedTokens);
+      console.log('Sanitized prompt (first 2000 chars):');
+      console.log(promptMeta.sanitizedPrompt);
+      console.log('=== END PROMPT DEBUG ===');
+    }
 
     // Call OpenAI
     const completion = await openai.chat.completions.create({
@@ -905,6 +1048,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
         url: s.url,
         title: s.title,
       })),
+      promptMeta: promptMeta,
     });
 
     res.json({
