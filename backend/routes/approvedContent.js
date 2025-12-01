@@ -10,7 +10,7 @@ const router = express.Router();
 router.get('/projects/:projectId/approved-content', authenticate, async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { page = 1, limit = 20, search } = req.query;
+    const { page = 1, limit = 20, search, lvl, outputFormat, dateFrom, dateTo } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -59,6 +59,29 @@ router.get('/projects/:projectId/approved-content', authenticate, async (req, re
         { originalText: { $regex: search.trim(), $options: 'i' } },
         { simplifiedText: { $regex: search.trim(), $options: 'i' } },
       ];
+    }
+
+    // Filter by LVL
+    if (lvl) {
+      query.lvl = lvl;
+    }
+
+    // Filter by output format
+    if (outputFormat) {
+      query.outputFormat = outputFormat;
+    }
+
+    // Filter by date range
+    if (dateFrom || dateTo) {
+      query.approvedAt = {};
+      if (dateFrom) {
+        query.approvedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const dateToObj = new Date(dateTo);
+        dateToObj.setHours(23, 59, 59, 999); // Include entire end date
+        query.approvedAt.$lte = dateToObj;
+      }
     }
 
     const approvedContent = await ApprovedContent.find(query)

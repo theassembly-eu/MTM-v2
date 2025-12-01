@@ -183,13 +183,41 @@
         </div>
         
         <div class="approved-content-filters">
-          <input
-            v-model="approvedContentSearch"
-            type="text"
-            placeholder="Zoeken in teksten..."
-            @input="fetchApprovedContent"
-            class="search-input"
-          />
+          <div class="filter-row">
+            <input
+              v-model="approvedContentSearch"
+              type="text"
+              placeholder="Zoeken in teksten..."
+              class="search-input"
+            />
+            <select v-model="approvedContentLvlFilter" @change="fetchApprovedContent" class="filter-select">
+              <option value="">Alle LVLs</option>
+              <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
+                {{ lvl.name }}
+              </option>
+            </select>
+            <select v-model="approvedContentFormatFilter" @change="fetchApprovedContent" class="filter-select">
+              <option value="">Alle formaten</option>
+              <option v-for="format in availableFormats" :key="format.id" :value="format.id">
+                {{ format.name }}
+              </option>
+            </select>
+            <input
+              v-model="approvedContentDateFrom"
+              type="date"
+              @change="fetchApprovedContent"
+              class="filter-date"
+              placeholder="Vanaf"
+            />
+            <input
+              v-model="approvedContentDateTo"
+              type="date"
+              @change="fetchApprovedContent"
+              class="filter-date"
+              placeholder="Tot"
+            />
+            <button @click="resetApprovedContentFilters" class="btn-filter-reset">Reset</button>
+          </div>
         </div>
 
         <div v-if="approvedContentLoading" class="loading">Laden...</div>
@@ -327,6 +355,10 @@ const approvedContent = ref([]);
 const approvedContentLoading = ref(false);
 const approvedContentError = ref(null);
 const approvedContentSearch = ref('');
+const approvedContentLvlFilter = ref('');
+const approvedContentFormatFilter = ref('');
+const approvedContentDateFrom = ref('');
+const approvedContentDateTo = ref('');
 const approvedContentPagination = ref({
   page: 1,
   limit: 20,
@@ -334,6 +366,8 @@ const approvedContentPagination = ref({
   totalPages: 0,
 });
 const selectedContent = ref(null);
+const availableLvls = ref([]);
+const availableFormats = ref([]);
 
 const teamForm = ref({
   name: '',
@@ -522,9 +556,9 @@ const canDeleteApprovedContent = computed(() =>
 
 function viewApprovedContent(project) {
   currentProject.value = project;
-  approvedContentSearch.value = '';
-  approvedContentPagination.value.page = 1;
+  resetApprovedContentFilters();
   showApprovedContentModal.value = true;
+  fetchLvlsAndFormats();
   fetchApprovedContent();
 }
 
@@ -539,6 +573,18 @@ async function fetchApprovedContent() {
     };
     if (approvedContentSearch.value.trim()) {
       params.search = approvedContentSearch.value.trim();
+    }
+    if (approvedContentLvlFilter.value) {
+      params.lvl = approvedContentLvlFilter.value;
+    }
+    if (approvedContentFormatFilter.value) {
+      params.outputFormat = approvedContentFormatFilter.value;
+    }
+    if (approvedContentDateFrom.value) {
+      params.dateFrom = approvedContentDateFrom.value;
+    }
+    if (approvedContentDateTo.value) {
+      params.dateTo = approvedContentDateTo.value;
     }
     const response = await axios.get(
       `/api/projects/${currentProject.value.id}/approved-content`,
@@ -556,6 +602,29 @@ async function fetchApprovedContent() {
     approvedContentError.value = err.response?.data?.error || 'Fout bij het ophalen van goedgekeurde teksten';
   } finally {
     approvedContentLoading.value = false;
+  }
+}
+
+function resetApprovedContentFilters() {
+  approvedContentSearch.value = '';
+  approvedContentLvlFilter.value = '';
+  approvedContentFormatFilter.value = '';
+  approvedContentDateFrom.value = '';
+  approvedContentDateTo.value = '';
+  approvedContentPagination.value.page = 1;
+  fetchApprovedContent();
+}
+
+async function fetchLvlsAndFormats() {
+  try {
+    const [lvlsRes, formatsRes] = await Promise.all([
+      axios.get('/api/lvls'),
+      axios.get('/api/output-formats'),
+    ]);
+    availableLvls.value = lvlsRes.data.map(l => ({ id: l._id || l.id, name: l.name }));
+    availableFormats.value = formatsRes.data.map(f => ({ id: f._id || f.id, name: f.name }));
+  } catch (err) {
+    console.error('Error fetching LVLs and formats:', err);
   }
 }
 
@@ -930,20 +999,52 @@ h4 {
 
 .approved-content-filters {
   margin-bottom: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
-.search-input {
-  width: 100%;
+.filter-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+  gap: var(--spacing-3);
+  align-items: center;
+}
+
+.search-input,
+.filter-select,
+.filter-date {
   padding: var(--spacing-3) var(--spacing-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
-.search-input:focus {
+.search-input:focus,
+.filter-select:focus,
+.filter-date:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-filter-reset {
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-text-tertiary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-filter-reset:hover {
+  background: #4B5563;
 }
 
 .approved-content-list {
@@ -1317,6 +1418,15 @@ h4 {
   .modal {
     padding: var(--spacing-6);
     max-width: 95vw;
+  }
+
+  .filter-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2);
+  }
+
+  .filter-row > * {
+    width: 100%;
   }
 }
 </style>
