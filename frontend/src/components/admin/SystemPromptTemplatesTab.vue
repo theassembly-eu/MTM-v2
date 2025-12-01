@@ -236,6 +236,7 @@ import axios from '../../utils/axios.js';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import Tooltip from '../common/Tooltip.vue';
 
 const { hasRole } = useAuth();
 const { success, error: showError } = useToast();

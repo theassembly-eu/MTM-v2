@@ -263,6 +263,7 @@ import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
+import Tooltip from '../common/Tooltip.vue';
 
 const { user, userTeams } = useAuth();
 const { success, error: showError } = useToast();
