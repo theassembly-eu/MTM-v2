@@ -248,6 +248,14 @@ async function saveUser() {
       delete data.password; // Don't send empty password
     }
 
+    // Only send lvls if role is ADMIN, otherwise don't include it at all
+    if (data.role !== 'ADMIN') {
+      delete data.lvls;
+    } else if (!data.lvls || data.lvls.length === 0) {
+      // If ADMIN but no LVLs, still don't send it (let backend handle validation)
+      delete data.lvls;
+    }
+
     if (editingUser.value) {
       await axios.put(`/api/users/${editingUser.value.id}`, data);
     } else {

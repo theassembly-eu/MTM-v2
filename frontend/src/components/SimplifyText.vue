@@ -615,7 +615,11 @@ const availableTeams = computed(() => {
 
 const availableProjects = computed(() => {
   if (!selectedTeamId.value) return [];
-  return projects.value.filter(p => p.team?.id === selectedTeamId.value || p.team === selectedTeamId.value);
+  const teamIdStr = String(selectedTeamId.value);
+  return projects.value.filter(p => {
+    const projectTeamId = p.team?.id ? String(p.team.id) : String(p.team || '');
+    return projectTeamId === teamIdStr;
+  });
 });
 
 const availableLvls = computed(() => {
@@ -814,16 +818,21 @@ async function fetchTeams() {
   try {
     const response = await axios.get('/api/teams');
     teams.value = response.data.map(team => ({
-      id: team._id || team.id,
+      id: String(team._id || team.id),
       name: team.name,
     }));
     
     // Auto-select team if user only has access to one team
-    if (availableTeams.value.length === 1 && !selectedTeamId.value) {
-      selectedTeamId.value = availableTeams.value[0].id;
-      // Trigger team change to fetch projects
-      onTeamChange();
-    }
+    // Use nextTick to ensure computed property has updated
+    await import('vue').then(({ nextTick }) => {
+      nextTick(() => {
+        if (availableTeams.value.length === 1 && !selectedTeamId.value) {
+          selectedTeamId.value = String(availableTeams.value[0].id);
+          // Trigger team change to fetch projects
+          onTeamChange();
+        }
+      });
+    });
   } catch (err) {
     console.error('Error fetching teams:', err);
   } finally {
