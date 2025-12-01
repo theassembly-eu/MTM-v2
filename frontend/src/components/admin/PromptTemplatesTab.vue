@@ -86,7 +86,12 @@
           
           <!-- Template Type Toggle -->
           <div class="form-group">
-            <label>Template Type</label>
+            <label>
+              Template Type
+              <Tooltip text="Volledige Tekst: Schrijf een complete prompt. Component-gebaseerd: Bouw een prompt op uit herbruikbare componenten uit de System Templates sectie." position="right" large>
+                <span class="help-icon">ℹ️</span>
+              </Tooltip>
+            </label>
             <div class="template-type-toggle">
               <button 
                 type="button"
@@ -1194,6 +1199,19 @@ onMounted(async () => {
 .template-type-badge.full-text {
   background: rgba(156, 163, 175, 0.1);
   color: #6b7280;
+}
+
+.help-icon {
+  display: inline-block;
+  margin-left: var(--spacing-2);
+  cursor: help;
+  font-size: var(--font-size-sm);
+  opacity: 0.6;
+  transition: opacity var(--transition-base);
+}
+
+.help-icon:hover {
+  opacity: 1;
 }
 </style>
 
