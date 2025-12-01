@@ -35,7 +35,7 @@
 
         <!-- Essential Settings (Compact Grid) -->
         <div class="settings-grid">
-          <div class="form-group">
+          <div class="form-group" v-if="availableTeams.length > 1">
             <label for="team-select">Team *</label>
             <select 
               id="team-select" 
@@ -51,6 +51,12 @@
                 {{ team.name }}
               </option>
             </select>
+          </div>
+          <div v-else-if="availableTeams.length === 1" class="form-group">
+            <label>Team</label>
+            <div class="auto-selected-value">
+              {{ availableTeams[0].name }}
+            </div>
           </div>
 
           <!-- Template Selection (Show when multiple templates available) -->
@@ -811,6 +817,13 @@ async function fetchTeams() {
       id: team._id || team.id,
       name: team.name,
     }));
+    
+    // Auto-select team if user only has access to one team
+    if (availableTeams.value.length === 1 && !selectedTeamId.value) {
+      selectedTeamId.value = availableTeams.value[0].id;
+      // Trigger team change to fetch projects
+      onTeamChange();
+    }
   } catch (err) {
     console.error('Error fetching teams:', err);
   } finally {
