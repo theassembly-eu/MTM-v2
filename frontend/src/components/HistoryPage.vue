@@ -47,7 +47,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading">Laden...</div>
+    <LoadingSpinner v-if="loading" message="Geschiedenis laden..." />
     <div v-if="error" class="error">{{ error }}</div>
     
     <EmptyState
@@ -334,6 +334,7 @@ import axios from 'axios';
 import { useAuth } from '../composables/useAuth.js';
 import { useToast } from '../composables/useToast.js';
 import EmptyState from './common/EmptyState.vue';
+import LoadingSpinner from './common/LoadingSpinner.vue';
 
 const { user, hasRole } = useAuth();
 const { success, error: showError } = useToast();

@@ -5,7 +5,7 @@
       <p class="page-subtitle">Beheer teams, projecten en hun communicatieniveaus</p>
     </div>
 
-    <div v-if="loading" class="loading">Laden...</div>
+    <LoadingSpinner v-if="loading" message="Teams en projecten laden..." />
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <!-- Teams List -->
@@ -238,7 +238,7 @@
           </div>
         </div>
 
-        <div v-if="approvedContentLoading" class="loading">Laden...</div>
+        <LoadingSpinner v-if="approvedContentLoading" message="Goedgekeurde teksten laden..." small />
         <div v-else-if="approvedContentError" class="error-message">{{ approvedContentError }}</div>
         <div v-else-if="approvedContent.length === 0" class="empty-state">
           Geen goedgekeurde teksten gevonden voor dit project.
@@ -395,6 +395,7 @@ import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
+import LoadingSpinner from '../common/LoadingSpinner.vue';
 
 const { user, hasRole } = useAuth();
 const { success, error: showError } = useToast();

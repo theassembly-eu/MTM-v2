@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading">Laden...</div>
+    <LoadingSpinner v-if="loading" message="Goedkeuringswachtrij laden..." />
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <!-- Kanban Board -->
@@ -356,6 +356,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
+import LoadingSpinner from '../common/LoadingSpinner.vue';
 
 const { hasRole } = useAuth();
 const { success, error: showError } = useToast();

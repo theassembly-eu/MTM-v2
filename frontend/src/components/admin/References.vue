@@ -19,7 +19,7 @@
       </select>
     </div>
 
-    <div v-if="loading" class="loading">Laden...</div>
+    <LoadingSpinner v-if="loading" message="Referenties laden..." />
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <div v-if="selectedProjectId" class="references-section">
@@ -137,6 +137,7 @@ import axios from 'axios';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
+import LoadingSpinner from '../common/LoadingSpinner.vue';
 
 const { success, error: showError } = useToast();
 const { confirm } = useConfirm();

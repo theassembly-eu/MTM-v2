@@ -17,7 +17,7 @@
       </select>
     </div>
 
-    <div v-if="loading" class="loading">Laden...</div>
+    <LoadingSpinner v-if="loading" message="Templates laden..." />
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <EmptyState
@@ -260,6 +260,7 @@ import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
+import LoadingSpinner from '../common/LoadingSpinner.vue';
 
 const { user, userTeams } = useAuth();
 const { success, error: showError } = useToast();
