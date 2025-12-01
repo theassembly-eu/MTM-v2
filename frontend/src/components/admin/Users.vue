@@ -67,7 +67,10 @@
               type="email" 
               required
               :disabled="!!editingUser"
+              :class="{ 'input-error': hasFieldError('email') }"
+              @blur="touchField('email')"
             />
+            <span v-if="getFieldError('email')" class="field-error">{{ getFieldError('email') }}</span>
           </div>
           <div class="form-group">
             <label>Naam</label>
@@ -79,17 +82,27 @@
               v-model="userForm.password" 
               type="password" 
               :required="!editingUser"
+              :class="{ 'input-error': hasFieldError('password') }"
+              @blur="touchField('password')"
             />
+            <span v-if="getFieldError('password')" class="field-error">{{ getFieldError('password') }}</span>
           </div>
           <div class="form-group">
             <label>Rol *</label>
-            <select v-model="userForm.role" required :disabled="!canChangeRole">
+            <select 
+              v-model="userForm.role" 
+              required 
+              :disabled="!canChangeRole"
+              :class="{ 'input-error': hasFieldError('role') }"
+              @blur="touchField('role')"
+            >
               <option value="">Selecteer rol</option>
               <option value="TEAM_MEMBER">Team Lid</option>
               <option value="TEAM_LEADER">Team Leider</option>
               <option value="ADMIN">Admin</option>
               <option v-if="isSuperAdmin" value="SUPER_ADMIN">Super Admin</option>
             </select>
+            <span v-if="getFieldError('role')" class="field-error">{{ getFieldError('role') }}</span>
           </div>
           <div class="form-group">
             <label>Teams</label>
@@ -101,11 +114,19 @@
           </div>
           <div v-if="isSuperAdmin && userForm.role === 'ADMIN'" class="form-group">
             <label>LVLs *</label>
-            <select v-model="userForm.lvls" multiple class="multi-select" required>
+            <select 
+              v-model="userForm.lvls" 
+              multiple 
+              class="multi-select" 
+              required
+              :class="{ 'input-error': hasFieldError('lvls') }"
+              @blur="touchField('lvls')"
+            >
               <option v-for="lvl in lvls" :key="lvl.id" :value="lvl.id">
                 {{ lvl.name }} ({{ lvl.code }})
               </option>
             </select>
+            <span v-if="getFieldError('lvls')" class="field-error">{{ getFieldError('lvls') }}</span>
             <p class="form-hint">Selecteer de administratieve niveaus waarvoor deze admin toegang heeft.</p>
           </div>
           <div class="modal-actions">
@@ -127,6 +148,7 @@ import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import { useFormValidation } from '../../composables/useFormValidation.js';
 import EmptyState from '../common/EmptyState.vue';
 
 const { user: currentUser, hasRole } = useAuth();
@@ -238,20 +260,22 @@ function closeModal() {
     teams: [],
     lvls: [],
   };
+  resetValidation();
 }
 
 async function saveUser() {
+  // Mark all fields as touched
+  Object.keys(validationRules).forEach(field => touchField(field));
+  
+  // Validate form
+  if (!validate(userForm.value)) {
+    error.value = 'Controleer de formuliervelden en corrigeer de fouten.';
+    return;
+  }
+  
   saving.value = true;
   error.value = null;
   try {
-    // Validate LVLs for ADMIN users
-    if (isSuperAdmin.value && userForm.value.role === 'ADMIN') {
-      if (!userForm.value.lvls || userForm.value.lvls.length === 0) {
-        error.value = 'Selecteer ten minste één LVL voor ADMIN gebruikers';
-        saving.value = false;
-        return;
-      }
-    }
 
     const data = { ...userForm.value };
     if (editingUser.value && !data.password) {
@@ -573,6 +597,19 @@ onMounted(() => {
 
 .btn-cancel:hover {
   background: #4B5563;
+}
+
+.input-error {
+  border-color: var(--color-error) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.field-error {
+  display: block;
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-1);
+  font-weight: var(--font-weight-medium);
 }
 
 .loading {
