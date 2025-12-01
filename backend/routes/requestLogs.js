@@ -113,18 +113,20 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/request-logs/approval-queue - Get texts pending approval (TEAM_LEADER or ADMIN)
+// GET /api/request-logs/approval-queue - Get texts for approval workflow (TEAM_LEADER or ADMIN)
 // NOTE: This must come BEFORE /:id route to avoid route conflicts
 router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const { projectId } = req.query; // Optional project filter
 
     let query = {
-      approvalStatus: { $in: ['CANDIDATE', 'VERIFIED'] }, // Pending verification or approval
+      approvalStatus: { $in: ['DRAFT', 'CANDIDATE', 'VERIFIED', 'APPROVED', 'REJECTED'] }, // All statuses for Kanban view
     };
+
+    // Filter by project if provided
+    if (projectId) {
+      query.project = projectId;
+    }
 
     // SUPER_ADMIN sees all
     if (req.user.role === 'SUPER_ADMIN') {
@@ -173,9 +175,7 @@ router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), 
       .populate('targetAudience', 'name')
       .populate('outputFormat', 'name')
       .populate('comments.user', 'email name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum);
+      .sort({ createdAt: -1 });
 
     // Manually populate nested approvalMeta user references
     const User = (await import('../models/User.js')).default;
@@ -210,19 +210,20 @@ router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), 
           console.error('Error populating approved.by:', err);
         }
       }
+      if (log.approvalMeta?.rejected?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.rejected.by).select('email name');
+          if (user) {
+            log.approvalMeta.rejected.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating rejected.by:', err);
+        }
+      }
     }
-
-    const total = await RequestLog.countDocuments(query);
-    const totalPages = Math.ceil(total / limitNum);
 
     res.json({
       data: logs,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-      },
     });
   } catch (error) {
     console.error('Error fetching approval queue:', error);
