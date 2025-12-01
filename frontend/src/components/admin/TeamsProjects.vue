@@ -21,8 +21,17 @@
         </button>
       </div>
 
+      <div class="search-section">
+        <SearchInput
+          v-model="teamSearchQuery"
+          @search="handleTeamSearch"
+          placeholder="Zoeken op teamnaam..."
+          label="Zoeken teams"
+        />
+      </div>
+
       <EmptyState
-        v-if="teams.length === 0"
+        v-if="filteredTeams.length === 0"
         icon="👥"
         title="Geen teams gevonden"
         description="Maak je eerste team aan om projecten en communicatieniveaus te beheren."
@@ -32,7 +41,7 @@
 
       <div v-else class="teams-list">
         <div 
-          v-for="team in teams" 
+          v-for="team in filteredTeams" 
           :key="team.id" 
           class="team-card"
         >
@@ -396,6 +405,7 @@ import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
+import SearchInput from '../common/SearchInput.vue';
 
 const { user, hasRole } = useAuth();
 const { success, error: showError } = useToast();
@@ -417,6 +427,7 @@ const showFullContentModal = ref(false);
 const currentProject = ref(null);
 const approvedContent = ref([]);
 const approvedContentLoading = ref(false);
+const teamSearchQuery = ref('');
 const approvedContentError = ref(null);
 const approvedContentSearch = ref('');
 const approvedContentLvlFilter = ref('');

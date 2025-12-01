@@ -30,8 +30,17 @@
         </button>
       </div>
 
+      <div class="search-section">
+        <SearchInput
+          v-model="searchQuery"
+          @search="handleSearch"
+          placeholder="Zoeken op titel, URL of trefwoorden..."
+          label="Zoeken referenties"
+        />
+      </div>
+
       <EmptyState
-        v-if="references.length === 0"
+        v-if="filteredReferences.length === 0"
         icon="🔗"
         title="Geen referenties"
         description="Voeg referenties toe (URLs of trefwoorden) om de AI context te geven bij het vereenvoudigen van teksten."
@@ -41,7 +50,7 @@
 
       <div v-else class="references-list">
         <div 
-          v-for="ref in references" 
+          v-for="ref in filteredReferences" 
           :key="ref.id" 
           class="reference-card"
         >
@@ -138,6 +147,7 @@ import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
+import SearchInput from '../common/SearchInput.vue';
 
 const { success, error: showError } = useToast();
 const { confirm } = useConfirm();
