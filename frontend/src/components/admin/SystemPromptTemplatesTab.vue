@@ -234,12 +234,14 @@
 import { ref, onMounted } from 'vue';
 import axios from '../../utils/axios.js';
 import { useAuth } from '../../composables/useAuth.js';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
 
 const { hasRole } = useAuth();
-
-const templates = ref([]);
 const { success, error: showError } = useToast();
 const { confirm } = useConfirm();
+
+const templates = ref([]);
 
 const loading = ref(false);
 const error = ref(null);
