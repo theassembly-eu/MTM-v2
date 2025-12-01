@@ -21,9 +21,14 @@
         </button>
       </div>
 
-      <div v-if="teams.length === 0" class="empty-state">
-        Geen teams gevonden.
-      </div>
+      <EmptyState
+        v-if="teams.length === 0"
+        icon="👥"
+        title="Geen teams gevonden"
+        description="Maak je eerste team aan om projecten en communicatieniveaus te beheren."
+        :action-label="canCreateTeam ? 'Nieuw Team' : ''"
+        :action-handler="canCreateTeam ? () => showCreateTeamModal = true : null"
+      />
 
       <div v-else class="teams-list">
         <div 
@@ -63,9 +68,15 @@
               </button>
             </div>
 
-            <div v-if="teamProjects(team.id).length === 0" class="empty-state-small">
-              Geen projecten voor dit team.
-            </div>
+            <EmptyState
+              v-if="teamProjects(team.id).length === 0"
+              icon="📁"
+              title="Geen projecten"
+              description="Voeg een project toe aan dit team om te beginnen."
+              :action-label="canCreateProject ? 'Nieuw Project' : ''"
+              :action-handler="canCreateProject ? () => openCreateProjectModal(team) : null"
+              class="empty-state-small"
+            />
 
             <ul v-else class="projects-list">
               <li 
@@ -383,6 +394,7 @@ import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import EmptyState from '../common/EmptyState.vue';
 
 const { user, hasRole } = useAuth();
 const { success, error: showError } = useToast();

@@ -1,8 +1,11 @@
 <template>
   <div class="config-list">
-    <div v-if="items.length === 0" class="empty-state">
-      Geen items gevonden.
-    </div>
+    <EmptyState
+      v-if="items.length === 0"
+      icon="📋"
+      :title="`Geen ${itemTypeLabel} gevonden`"
+      :description="`Voeg je eerste ${itemTypeLabel.toLowerCase()} toe om te beginnen.`"
+    />
     <div v-else class="items-list">
       <div 
         v-for="item in items" 
@@ -29,7 +32,10 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+import EmptyState from '../common/EmptyState.vue';
+
+const props = defineProps({
   items: {
     type: Array,
     required: true,
@@ -41,6 +47,16 @@ defineProps({
 });
 
 defineEmits(['edit', 'delete']);
+
+const itemTypeLabel = computed(() => {
+  const labels = {
+    lvl: 'administratieve niveaus',
+    audience: 'doelgroepen',
+    format: 'outputformaten',
+    language: 'talen',
+  };
+  return labels[props.itemType] || 'items';
+});
 </script>
 
 <style scoped>

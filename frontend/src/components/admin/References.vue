@@ -30,9 +30,14 @@
         </button>
       </div>
 
-      <div v-if="references.length === 0" class="empty-state">
-        Geen referenties voor dit project.
-      </div>
+      <EmptyState
+        v-if="references.length === 0"
+        icon="🔗"
+        title="Geen referenties"
+        description="Voeg referenties toe (URLs of trefwoorden) om de AI context te geven bij het vereenvoudigen van teksten."
+        action-label="Nieuwe Referentie"
+        :action-handler="() => showCreateModal = true"
+      />
 
       <div v-else class="references-list">
         <div 
@@ -131,6 +136,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import EmptyState from '../common/EmptyState.vue';
 
 const { success, error: showError } = useToast();
 const { confirm } = useConfirm();

@@ -50,9 +50,12 @@
     <div v-if="loading" class="loading">Laden...</div>
     <div v-if="error" class="error">{{ error }}</div>
     
-    <div v-if="requestLogs.length === 0 && !loading" class="no-results">
-      Geen resultaten gevonden.
-    </div>
+    <EmptyState
+      v-if="requestLogs.length === 0 && !loading"
+      icon="📜"
+      title="Geen geschiedenis gevonden"
+      description="Er zijn nog geen vereenvoudigde teksten. Begin met het vereenvoudigen van je eerste tekst!"
+    />
 
     <div v-else>
       <div class="pagination-info">
@@ -330,6 +333,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../composables/useAuth.js';
 import { useToast } from '../composables/useToast.js';
+import EmptyState from './common/EmptyState.vue';
 
 const { user, hasRole } = useAuth();
 const { success, error: showError } = useToast();

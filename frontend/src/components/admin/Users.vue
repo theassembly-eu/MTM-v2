@@ -15,9 +15,14 @@
     <div v-if="loading" class="loading">Laden...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div v-if="users.length === 0 && !loading" class="empty-state">
-      Geen gebruikers gevonden.
-    </div>
+    <EmptyState
+      v-if="users.length === 0 && !loading"
+      icon="👥"
+      title="Geen gebruikers gevonden"
+      description="Maak je eerste gebruiker aan om te beginnen met het beheren van gebruikers en rollen."
+      action-label="Nieuwe Gebruiker"
+      :action-handler="() => showCreateModal = true"
+    />
 
     <div v-else class="users-list">
       <div 
@@ -122,6 +127,7 @@ import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import EmptyState from '../common/EmptyState.vue';
 
 const { user: currentUser, hasRole } = useAuth();
 const { success, error: showError } = useToast();

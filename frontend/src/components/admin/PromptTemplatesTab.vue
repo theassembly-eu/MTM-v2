@@ -20,9 +20,14 @@
     <div v-if="loading" class="loading">Laden...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div v-if="templates.length === 0 && !loading" class="no-data">
-      Geen templates gevonden. Maak je eerste template aan!
-    </div>
+    <EmptyState
+      v-if="templates.length === 0 && !loading"
+      icon="📝"
+      title="Geen templates gevonden"
+      description="Maak je eerste prompt template aan om prompts te hergebruiken en te standaardiseren."
+      action-label="+ Nieuwe Template"
+      :action-handler="() => showCreateModal = true"
+    />
 
     <div v-else class="templates-grid">
       <div v-for="template in templates" :key="template.id" class="template-card">
@@ -254,6 +259,7 @@ import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import EmptyState from '../common/EmptyState.vue';
 
 const { user, userTeams } = useAuth();
 const { success, error: showError } = useToast();

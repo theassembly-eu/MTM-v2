@@ -158,10 +158,14 @@
         </div>
       </div>
 
-      <div v-if="filteredTests.length === 0" class="empty-state">
-        <p>Geen A/B tests gevonden</p>
-        <button @click="openCreateModal" class="btn-primary">Maak je eerste test</button>
-      </div>
+      <EmptyState
+        v-if="filteredTests.length === 0"
+        icon="🧪"
+        title="Geen A/B tests gevonden"
+        description="Maak je eerste A/B test aan om verschillende promptversies te vergelijken en de beste te vinden."
+        action-label="Maak je eerste test"
+        :action-handler="openCreateModal"
+      />
     </div>
 
     <!-- Create/Edit Modal -->
@@ -433,6 +437,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
+import EmptyState from '../common/EmptyState.vue';
 
 const tests = ref([]);
 const templates = ref([]);
