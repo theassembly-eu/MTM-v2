@@ -76,6 +76,7 @@
                 <span>{{ project.name }}</span>
                 <span class="project-lvls">({{ getProjectLvlNames(project) }})</span>
                 <div class="project-actions">
+                  <button @click="viewApprovedContent(project)" class="btn-view-small">📚 Goedgekeurd</button>
                   <button @click="editProject(project)" class="btn-edit-small">Bewerken</button>
                   <button @click="deleteProject(project.id)" class="btn-delete-small">Verwijderen</button>
                 </div>
@@ -170,11 +171,137 @@
         </form>
       </div>
     </div>
+
+    <!-- Approved Content Library Modal -->
+    <div v-if="showApprovedContentModal" class="modal-overlay" @click="showApprovedContentModal = false">
+      <div class="modal approved-content-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Goedgekeurde Teksten - {{ currentProject?.name }}</h3>
+          <button @click="showApprovedContentModal = false" class="btn-close">×</button>
+        </div>
+        
+        <div class="approved-content-filters">
+          <input
+            v-model="approvedContentSearch"
+            type="text"
+            placeholder="Zoeken in teksten..."
+            @input="fetchApprovedContent"
+            class="search-input"
+          />
+        </div>
+
+        <div v-if="approvedContentLoading" class="loading">Laden...</div>
+        <div v-else-if="approvedContentError" class="error-message">{{ approvedContentError }}</div>
+        <div v-else-if="approvedContent.length === 0" class="empty-state">
+          Geen goedgekeurde teksten gevonden voor dit project.
+        </div>
+        <div v-else class="approved-content-list">
+          <div
+            v-for="content in approvedContent"
+            :key="content._id || content.id"
+            class="approved-content-item"
+          >
+            <div class="content-header">
+              <div class="content-meta">
+                <span class="content-date">{{ formatDate(content.approvedAt) }}</span>
+                <span class="content-lvl">{{ content.lvl?.name || 'N/A' }}</span>
+                <span class="content-format">{{ content.outputFormat?.name || 'N/A' }}</span>
+              </div>
+              <button
+                v-if="canDeleteApprovedContent"
+                @click="deleteApprovedContent(content._id || content.id)"
+                class="btn-delete-small"
+                title="Verwijderen"
+              >
+                🗑️
+              </button>
+            </div>
+            <div class="content-body">
+              <div class="content-section">
+                <strong>Originele Tekst:</strong>
+                <p class="content-text">{{ truncateText(content.originalText, 200) }}</p>
+              </div>
+              <div class="content-section">
+                <strong>Vereenvoudigde Tekst:</strong>
+                <p class="content-text">{{ truncateText(content.simplifiedText, 200) }}</p>
+              </div>
+              <div class="content-footer">
+                <span class="content-approver">
+                  Goedgekeurd door {{ content.approvedBy?.email || 'Onbekend' }}
+                </span>
+                <button @click="viewFullContent(content)" class="btn-view-full">Bekijk volledig</button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="approvedContentPagination.totalPages > 1" class="pagination">
+            <button
+              @click="changeApprovedContentPage(approvedContentPagination.page - 1)"
+              :disabled="approvedContentPagination.page <= 1"
+              class="pagination-btn"
+            >
+              Vorige
+            </button>
+            <span>
+              Pagina {{ approvedContentPagination.page }} van {{ approvedContentPagination.totalPages }}
+            </span>
+            <button
+              @click="changeApprovedContentPage(approvedContentPagination.page + 1)"
+              :disabled="approvedContentPagination.page >= approvedContentPagination.totalPages"
+              class="pagination-btn"
+            >
+              Volgende
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Content View Modal -->
+    <div v-if="showFullContentModal" class="modal-overlay" @click="showFullContentModal = false">
+      <div class="modal full-content-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Goedgekeurde Tekst</h3>
+          <button @click="showFullContentModal = false" class="btn-close">×</button>
+        </div>
+        <div v-if="selectedContent" class="full-content">
+          <div class="content-meta-full">
+            <p><strong>Goedgekeurd op:</strong> {{ formatDate(selectedContent.approvedAt) }}</p>
+            <p><strong>Goedgekeurd door:</strong> {{ selectedContent.approvedBy?.email || 'Onbekend' }}</p>
+            <p><strong>LVL:</strong> {{ selectedContent.lvl?.name || 'N/A' }}</p>
+            <p><strong>Formaat:</strong> {{ selectedContent.outputFormat?.name || 'N/A' }}</p>
+            <p><strong>Doelgroep:</strong> {{ selectedContent.targetAudience?.name || 'N/A' }}</p>
+          </div>
+          <div class="content-section-full">
+            <h4>Originele Tekst</h4>
+            <pre class="content-text-full">{{ selectedContent.originalText }}</pre>
+          </div>
+          <div class="content-section-full">
+            <h4>Vereenvoudigde Tekst</h4>
+            <pre class="content-text-full">{{ selectedContent.simplifiedText }}</pre>
+          </div>
+          <div v-if="selectedContent.metadata?.verificationNotes" class="content-notes">
+            <h4>Verificatie Notities</h4>
+            <p>{{ selectedContent.metadata.verificationNotes }}</p>
+          </div>
+          <div v-if="selectedContent.metadata?.approvalNotes" class="content-notes">
+            <h4>Goedkeuring Notities</h4>
+            <p>{{ selectedContent.metadata.approvalNotes }}</p>
+          </div>
+          <div class="modal-actions">
+            <button @click="copyToClipboard(selectedContent.simplifiedText)" class="btn-primary">
+              📋 Kopieer naar klembord
+            </button>
+            <button @click="showFullContentModal = false" class="btn-secondary">Sluiten</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 
@@ -191,6 +318,20 @@ const showCreateTeamModal = ref(false);
 const editingTeam = ref(null);
 const showCreateProjectModal = ref(false);
 const editingProject = ref(null);
+const showApprovedContentModal = ref(false);
+const showFullContentModal = ref(false);
+const currentProject = ref(null);
+const approvedContent = ref([]);
+const approvedContentLoading = ref(false);
+const approvedContentError = ref(null);
+const approvedContentSearch = ref('');
+const approvedContentPagination = ref({
+  page: 1,
+  limit: 20,
+  total: 0,
+  totalPages: 0,
+});
+const selectedContent = ref(null);
 
 const teamForm = ref({
   name: '',
@@ -372,6 +513,100 @@ async function deleteProject(projectId) {
     error.value = err.response?.data?.error || 'Fout bij het verwijderen van project';
   }
 }
+
+const canDeleteApprovedContent = computed(() => 
+  hasRole('TEAM_LEADER') || hasRole('ADMIN') || hasRole('SUPER_ADMIN')
+);
+
+function viewApprovedContent(project) {
+  currentProject.value = project;
+  approvedContentSearch.value = '';
+  approvedContentPagination.value.page = 1;
+  showApprovedContentModal.value = true;
+  fetchApprovedContent();
+}
+
+async function fetchApprovedContent() {
+  if (!currentProject.value) return;
+  approvedContentLoading.value = true;
+  approvedContentError.value = null;
+  try {
+    const params = {
+      page: approvedContentPagination.value.page,
+      limit: approvedContentPagination.value.limit,
+    };
+    if (approvedContentSearch.value.trim()) {
+      params.search = approvedContentSearch.value.trim();
+    }
+    const response = await axios.get(
+      `/api/projects/${currentProject.value.id}/approved-content`,
+      { params }
+    );
+    approvedContent.value = response.data.data;
+    approvedContentPagination.value = {
+      page: response.data.pagination.page,
+      limit: response.data.pagination.limit,
+      total: response.data.pagination.total,
+      totalPages: response.data.pagination.totalPages,
+    };
+  } catch (err) {
+    console.error('Error fetching approved content:', err);
+    approvedContentError.value = err.response?.data?.error || 'Fout bij het ophalen van goedgekeurde teksten';
+  } finally {
+    approvedContentLoading.value = false;
+  }
+}
+
+function changeApprovedContentPage(newPage) {
+  approvedContentPagination.value.page = newPage;
+  fetchApprovedContent();
+}
+
+function viewFullContent(content) {
+  selectedContent.value = content;
+  showFullContentModal.value = true;
+}
+
+async function deleteApprovedContent(contentId) {
+  if (!confirm('Weet je zeker dat je deze goedgekeurde tekst wilt verwijderen?')) return;
+  try {
+    await axios.delete(`/api/projects/${currentProject.value.id}/approved-content/${contentId}`);
+    await fetchApprovedContent();
+  } catch (err) {
+    console.error('Error deleting approved content:', err);
+    alert(err.response?.data?.error || 'Fout bij het verwijderen van goedgekeurde tekst');
+  }
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('Tekst gekopieerd naar klembord!');
+  } catch (err) {
+    console.error('Error copying to clipboard:', err);
+    alert('Fout bij kopiëren naar klembord');
+  }
+}
+
+function truncateText(text, maxLength) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'Onbekend';
+  return new Date(dateString).toLocaleString('nl-BE');
+}
+
+let searchDebounceTimer = null;
+watch(approvedContentSearch, () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    approvedContentPagination.value.page = 1;
+    fetchApprovedContent();
+  }, 500);
+});
 
 onMounted(() => {
   fetchData();
@@ -595,6 +830,256 @@ h4 {
 
 .btn-delete:hover, .btn-delete-small:hover {
   background: #DC2626;
+}
+
+.btn-view-small {
+  background: #3B82F6;
+  color: var(--color-text-inverse);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.btn-view-small:hover {
+  background: #2563EB;
+}
+
+.btn-view-full {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+}
+
+.btn-view-full:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-2xl);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}
+
+.btn-close:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.approved-content-modal,
+.full-content-modal {
+  max-width: 900px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-6);
+}
+
+.approved-content-filters {
+  margin-bottom: var(--spacing-6);
+}
+
+.search-input {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.approved-content-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.approved-content-item {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  transition: box-shadow var(--transition-base);
+}
+
+.approved-content-item:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.content-meta {
+  display: flex;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.content-meta span {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-1) var(--spacing-2);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+}
+
+.content-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.content-section {
+  margin-bottom: var(--spacing-3);
+}
+
+.content-section strong {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2);
+}
+
+.content-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.content-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.content-approver {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.full-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.content-meta-full {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.content-meta-full p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.content-section-full h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-3);
+}
+
+.content-text-full {
+  background: var(--color-bg-secondary);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.content-notes {
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+
+.content-notes h4 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.content-notes p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-style: italic;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.pagination-btn {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--color-bg-secondary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-small, .btn-edit-small, .btn-delete-small {

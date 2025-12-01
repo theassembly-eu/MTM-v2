@@ -229,6 +229,9 @@ import analyticsRouter from './routes/analytics.js';
 app.use('/api/request-logs', requestLogsRouter);
 app.use('/api/simplify', simplifyRouter);
 app.use('/api/analytics', analyticsRouter);
+import approvedContentRouter from './routes/approvedContent.js';
+
+app.use('/api', approvedContentRouter); // Approved content routes use /api/projects/:id/approved-content
 import promptsRouter from './routes/prompts.js';
 import promptTemplatesRouter from './routes/promptTemplates.js';
 import systemPromptTemplatesRouter from './routes/systemPromptTemplates.js';
