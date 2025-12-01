@@ -68,9 +68,23 @@ export function requireTeamMembership(getTeamId) {
       return res.status(401).json({ error: 'Authentication required', code: 'NO_AUTH' });
     }
 
-    // SUPER_ADMIN and ADMIN can access any team
-    if (req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN') {
+    // SUPER_ADMIN can access any team
+    if (req.user.role === 'SUPER_ADMIN') {
       return next();
+    }
+
+    // ADMIN: Check if team has any LVLs that ADMIN is assigned to
+    if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const Team = (await import('../models/Team.js')).default;
+      const team = await Team.findById(teamId).select('lvls');
+      if (team) {
+        const teamLvlIds = team.lvls.map(id => id.toString());
+        const adminLvlIds = req.user.lvls.map(id => id.toString());
+        const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+        if (hasMatchingLvl) {
+          return next();
+        }
+      }
     }
 
     const teamId = getTeamId(req);
@@ -111,9 +125,22 @@ export function requireTeamOwnership(getTeamId) {
       return res.status(400).json({ error: 'Team ID required', code: 'NO_TEAM_ID' });
     }
 
-    // ADMIN and TEAM_LEADER can manage teams they belong to
-    if ((req.user.role === 'ADMIN' || req.user.role === 'TEAM_LEADER') && 
-        req.user.teams.includes(teamId)) {
+    // ADMIN: Check if team has any LVLs that ADMIN is assigned to
+    if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const Team = (await import('../models/Team.js')).default;
+      const team = await Team.findById(teamId).select('lvls');
+      if (team) {
+        const teamLvlIds = team.lvls.map(id => id.toString());
+        const adminLvlIds = req.user.lvls.map(id => id.toString());
+        const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+        if (hasMatchingLvl) {
+          return next();
+        }
+      }
+    }
+
+    // TEAM_LEADER can manage teams they belong to
+    if (req.user.role === 'TEAM_LEADER' && req.user.teams.includes(teamId)) {
       return next();
     }
 
@@ -123,5 +150,47 @@ export function requireTeamOwnership(getTeamId) {
       teamId,
     });
   };
+}
+
+/**
+ * Helper function to check if ADMIN has access to a project based on LVLs
+ * @param {Object} adminUser - User object with lvls array
+ * @param {Object} project - Project object with lvls array
+ * @returns {boolean} True if ADMIN has access
+ */
+export function adminHasAccessToProject(adminUser, project) {
+  if (adminUser.role !== 'ADMIN' || !adminUser.lvls || adminUser.lvls.length === 0) {
+    return false;
+  }
+  
+  if (!project.lvls || project.lvls.length === 0) {
+    return false;
+  }
+
+  const projectLvlIds = project.lvls.map(id => id.toString());
+  const adminLvlIds = adminUser.lvls.map(id => id.toString());
+  
+  return projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+}
+
+/**
+ * Helper function to check if ADMIN has access to a team based on LVLs
+ * @param {Object} adminUser - User object with lvls array
+ * @param {Object} team - Team object with lvls array
+ * @returns {boolean} True if ADMIN has access
+ */
+export function adminHasAccessToTeam(adminUser, team) {
+  if (adminUser.role !== 'ADMIN' || !adminUser.lvls || adminUser.lvls.length === 0) {
+    return false;
+  }
+  
+  if (!team.lvls || team.lvls.length === 0) {
+    return false;
+  }
+
+  const teamLvlIds = team.lvls.map(id => id.toString());
+  const adminLvlIds = adminUser.lvls.map(id => id.toString());
+  
+  return teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
 }
 

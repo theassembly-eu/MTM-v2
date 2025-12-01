@@ -7,12 +7,12 @@ import LVL from '../models/LVL.js';
 import SystemPromptTemplate from '../models/SystemPromptTemplate.js';
 import ABTest from '../models/ABTest.js';
 import { authenticate } from '../middleware/auth.js';
-import { requireRole } from '../middleware/roles.js';
+import { requireRole, requireRoleOrHigher } from '../middleware/roles.js';
 
 const router = express.Router();
 
-// GET /api/analytics - Get analytics data (SUPER_ADMIN only)
-router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
+// GET /api/analytics - Get analytics data (SUPER_ADMIN and ADMIN with LVL filtering)
+router.get('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
@@ -26,6 +26,14 @@ router.get('/', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
       if (endDate) {
         dateFilter.createdAt.$lte = new Date(endDate);
       }
+    }
+
+    // For ADMIN, filter by projects using their assigned LVLs
+    if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // Find projects that use the ADMIN's LVLs
+      const projects = await Project.find({ lvls: { $in: req.user.lvls } }).select('_id');
+      const projectIds = projects.map(p => p._id);
+      dateFilter.project = { $in: projectIds };
     }
 
     // Get total requests

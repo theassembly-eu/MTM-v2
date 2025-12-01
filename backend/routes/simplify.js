@@ -784,8 +784,18 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
       });
     }
 
-    // Check if user is member of the team
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    // Check if user is member of the team or has LVL-based access
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can access any team
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can access teams that have at least one of their assigned LVLs
+      // We'll check this when we load the project
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can access their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not a member of this team' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not a member of this team' });
       }
@@ -799,6 +809,16 @@ router.post('/', authenticate, simplifyRateLimit, async (req, res) => {
 
     if (project.team._id.toString() !== teamId) {
       return res.status(400).json({ error: 'Project does not belong to specified team' });
+    }
+
+    // For ADMIN with LVLs, verify they have access to this project's LVLs
+    if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const projectLvlIds = project.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to use this project' });
+      }
     }
 
     // Validate LVL is in project's LVLs
@@ -1232,8 +1252,18 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       });
     }
 
-    // Check if user is member of the team
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    // Check if user is member of the team or has LVL-based access
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can access any team
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can access teams that have at least one of their assigned LVLs
+      // We'll check this when we load the project
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can access their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not a member of this team' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not a member of this team' });
       }
@@ -1247,6 +1277,16 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
 
     if (project.team._id.toString() !== teamId) {
       return res.status(400).json({ error: 'Project does not belong to specified team' });
+    }
+
+    // For ADMIN with LVLs, verify they have access to this project's LVLs
+    if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const projectLvlIds = project.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to use this project' });
+      }
     }
 
     // Validate LVL is in project's LVLs

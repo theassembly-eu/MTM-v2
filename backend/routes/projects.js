@@ -3,7 +3,7 @@ import Project from '../models/Project.js';
 import Team from '../models/Team.js';
 import Reference from '../models/Reference.js';
 import { authenticate } from '../middleware/auth.js';
-import { requireRoleOrHigher, requireTeamMembership } from '../middleware/roles.js';
+import { requireRoleOrHigher, requireTeamMembership, adminHasAccessToProject } from '../middleware/roles.js';
 
 const router = express.Router();
 
@@ -17,14 +17,32 @@ router.get('/', authenticate, async (req, res) => {
       query.team = teamId;
       
       // Check if user has access to this team
-      if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      if (req.user.role === 'SUPER_ADMIN') {
+        // SUPER_ADMIN can see all projects
+      } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+        // ADMIN can see projects using their assigned LVLs
+        query.lvls = { $in: req.user.lvls };
+      } else if (req.user.role === 'ADMIN') {
+        // Fallback: ADMIN sees projects from their teams (if no LVLs assigned yet)
+        if (!req.user.teams.includes(teamId)) {
+          return res.status(403).json({ error: 'Not authorized to view projects for this team' });
+        }
+      } else {
         if (!req.user.teams.includes(teamId)) {
           return res.status(403).json({ error: 'Not authorized to view projects for this team' });
         }
       }
     } else {
-      // If no teamId, filter by user's teams (unless SUPER_ADMIN/ADMIN)
-      if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      // If no teamId, filter by permissions
+      if (req.user.role === 'SUPER_ADMIN') {
+        // SUPER_ADMIN sees all projects
+      } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+        // ADMIN sees projects using their assigned LVLs
+        query.lvls = { $in: req.user.lvls };
+      } else if (req.user.role === 'ADMIN') {
+        // Fallback: ADMIN sees projects from their teams (if no LVLs assigned yet)
+        query.team = { $in: req.user.teams };
+      } else {
         query.team = { $in: req.user.teams };
       }
     }
@@ -53,7 +71,20 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 
     // Check permissions
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can see any project
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can see projects using their assigned LVLs
+      if (!adminHasAccessToProject(req.user, project)) {
+        return res.status(403).json({ error: 'Not authorized to view this project' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN sees projects from their teams (if no LVLs assigned yet)
+      const teamId = project.team._id.toString();
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to view this project' });
+      }
+    } else {
       const teamId = project.team._id.toString();
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to view this project' });
@@ -83,7 +114,28 @@ router.post('/', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, r
     }
 
     // Check permissions
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can create projects for any team
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can create projects for teams that have their LVLs, but can only use their assigned LVLs
+      const teamLvlIds = teamDoc.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to create projects for this team' });
+      }
+      // ADMIN can only use LVLs they have permission for
+      const projectLvlIds = lvls.map(id => id.toString());
+      const allAllowed = projectLvlIds.every(lvlId => adminLvlIds.includes(lvlId));
+      if (!allAllowed) {
+        return res.status(403).json({ error: 'ADMIN can only use LVLs they have permission for' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can create projects for their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(team)) {
+        return res.status(403).json({ error: 'Not authorized to create projects for this team' });
+      }
+    } else {
       if (!req.user.teams.includes(team)) {
         return res.status(403).json({ error: 'Not authorized to create projects for this team' });
       }
@@ -132,17 +184,39 @@ router.put('/:id', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req,
 
     // Check permissions
     const teamId = project.team._id.toString();
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can update any project
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can update projects using their assigned LVLs
+      if (!adminHasAccessToProject(req.user, project)) {
+        return res.status(403).json({ error: 'Not authorized to update this project' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can update projects from their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to update this project' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to update this project' });
       }
     }
 
-    // If LVLs are being updated, validate subset
+    // If LVLs are being updated, validate subset and ADMIN permissions
     if (lvls && Array.isArray(lvls)) {
       const team = await Team.findById(teamId);
       const teamLvlIds = team.lvls.map(id => id.toString());
       const projectLvlIds = lvls.map(id => id.toString());
+      
+      // ADMIN can only use LVLs they have permission for
+      if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+        const adminLvlIds = req.user.lvls.map(id => id.toString());
+        const allAllowed = projectLvlIds.every(lvlId => adminLvlIds.includes(lvlId));
+        if (!allAllowed) {
+          return res.status(403).json({ error: 'ADMIN can only use LVLs they have permission for' });
+        }
+      }
+      
       const isValidSubset = projectLvlIds.every(lvlId => teamLvlIds.includes(lvlId));
 
       if (!isValidSubset) {
@@ -181,7 +255,19 @@ router.delete('/:id', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (r
 
     // Check permissions
     const teamId = project.team._id.toString();
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can delete any project
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can delete projects using their assigned LVLs
+      if (!adminHasAccessToProject(req.user, project)) {
+        return res.status(403).json({ error: 'Not authorized to delete this project' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can delete projects from their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to delete this project' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to delete this project' });
       }

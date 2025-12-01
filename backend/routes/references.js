@@ -70,7 +70,22 @@ router.get('/projects/:projectId/references', authenticate, async (req, res) => 
 
     // Check permissions
     const teamId = project.team._id.toString();
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can view any references
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can view references for projects using their assigned LVLs
+      const projectLvlIds = project.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to view references for this project' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can view references for their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to view references for this project' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to view references for this project' });
       }
@@ -106,7 +121,22 @@ router.post('/projects/:projectId/references', authenticate, requireRoleOrHigher
 
     // Check permissions
     const teamId = project.team._id.toString();
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can create references for any project
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can create references for projects using their assigned LVLs
+      const projectLvlIds = project.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to create references for this project' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can create references for their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to create references for this project' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to create references for this project' });
       }
@@ -160,7 +190,22 @@ router.put('/:id', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req,
     const teamId = project.team._id.toString();
 
     // Check permissions
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can update any reference
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can update references for projects using their assigned LVLs
+      const projectLvlIds = project.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to update this reference' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can update references for their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to update this reference' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to update this reference' });
       }
@@ -192,7 +237,22 @@ router.delete('/:id', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (r
     const teamId = project.team._id.toString();
 
     // Check permissions
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can delete any reference
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can delete references for projects using their assigned LVLs
+      const projectLvlIds = project.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = projectLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to delete this reference' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can delete references for their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(teamId)) {
+        return res.status(403).json({ error: 'Not authorized to delete this reference' });
+      }
+    } else {
       if (!req.user.teams.includes(teamId)) {
         return res.status(403).json({ error: 'Not authorized to delete this reference' });
       }

@@ -127,7 +127,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Find user by email
-    const user = await User.findOne({ email: email.toLowerCase() }).populate('teams');
+    const user = await User.findOne({ email: email.toLowerCase() }).populate('teams').populate('lvls', 'name code');
     if (!user) {
       console.log('Login failed: User not found for email:', email.toLowerCase());
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -161,6 +161,11 @@ app.post('/api/auth/login', async (req, res) => {
           id: team._id.toString(),
           name: team.name,
         })),
+        lvls: user.lvls ? user.lvls.map(lvl => ({
+          id: lvl._id.toString(),
+          name: lvl.name,
+          code: lvl.code,
+        })) : [],
       },
     });
   } catch (error) {

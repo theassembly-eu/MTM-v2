@@ -15,6 +15,11 @@ router.get('/', authenticate, async (req, res) => {
     if (req.user.role === 'SUPER_ADMIN') {
       // SUPER_ADMIN sees all teams
       teams = await Team.find().populate('lvls', 'name code').populate('members', 'email name role');
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN sees teams that have at least one of their assigned LVLs
+      teams = await Team.find({ lvls: { $in: req.user.lvls } })
+        .populate('lvls', 'name code')
+        .populate('members', 'email name role');
     } else {
       // Other users only see teams they belong to
       teams = await Team.find({ members: req.user.id })
@@ -40,8 +45,19 @@ router.get('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    // Check permissions (SUPER_ADMIN/ADMIN can see any, others only their teams)
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+    // Check permissions
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can see any team
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can see teams that have at least one of their assigned LVLs
+      const teamLvlIds = team.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to view this team' });
+      }
+    } else {
+      // Other users only see teams they belong to
       if (!req.user.teams.includes(req.params.id)) {
         return res.status(403).json({ error: 'Not authorized to view this team' });
       }
@@ -67,6 +83,16 @@ router.post('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) =>
       return res.status(400).json({ error: 'At least one LVL is required' });
     }
 
+    // ADMIN can only assign LVLs they have permission for
+    if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const requestedLvlIds = lvls.map(id => id.toString());
+      const allAllowed = requestedLvlIds.every(lvlId => adminLvlIds.includes(lvlId));
+      if (!allAllowed) {
+        return res.status(403).json({ error: 'ADMIN can only assign LVLs they have permission for' });
+      }
+    }
+
     const team = await Team.create({
       name,
       lvls,
@@ -74,6 +100,7 @@ router.post('/', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) =>
     });
 
     // If members provided, update their teams array
+    // Note: ADMIN is NOT automatically added as a team member (LVL-based, not team-based)
     if (members && members.length > 0) {
       await User.updateMany(
         { _id: { $in: members } },
@@ -103,6 +130,16 @@ router.put('/:id', authenticate, requireTeamOwnership((req) => req.params.id), a
     const team = await Team.findById(req.params.id);
     if (!team) {
       return res.status(404).json({ error: 'Team not found' });
+    }
+
+    // ADMIN can only change LVLs to ones they have permission for
+    if (lvls && req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const requestedLvlIds = lvls.map(id => id.toString());
+      const allAllowed = requestedLvlIds.every(lvlId => adminLvlIds.includes(lvlId));
+      if (!allAllowed) {
+        return res.status(403).json({ error: 'ADMIN can only assign LVLs they have permission for' });
+      }
     }
 
     // Check if team has projects before allowing LVL changes
@@ -200,8 +237,23 @@ router.post('/:id/members', authenticate, requireRoleOrHigher('ADMIN'), async (r
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    // Check ownership (SUPER_ADMIN can add to any, ADMIN only to their teams)
-    if (req.user.role !== 'SUPER_ADMIN' && !req.user.teams.includes(req.params.id)) {
+    // Check ownership
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can add to any team
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can manage teams that have at least one of their assigned LVLs
+      const teamLvlIds = team.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to manage this team' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can manage their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(req.params.id)) {
+        return res.status(403).json({ error: 'Not authorized to manage this team' });
+      }
+    } else {
       return res.status(403).json({ error: 'Not authorized to manage this team' });
     }
 
@@ -243,7 +295,22 @@ router.delete('/:id/members/:userId', authenticate, requireRoleOrHigher('ADMIN')
     }
 
     // Check ownership
-    if (req.user.role !== 'SUPER_ADMIN' && !req.user.teams.includes(req.params.id)) {
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can remove from any team
+    } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // ADMIN can manage teams that have at least one of their assigned LVLs
+      const teamLvlIds = team.lvls.map(id => id.toString());
+      const adminLvlIds = req.user.lvls.map(id => id.toString());
+      const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+      if (!hasMatchingLvl) {
+        return res.status(403).json({ error: 'Not authorized to manage this team' });
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can manage their teams (if no LVLs assigned yet)
+      if (!req.user.teams.includes(req.params.id)) {
+        return res.status(403).json({ error: 'Not authorized to manage this team' });
+      }
+    } else {
       return res.status(403).json({ error: 'Not authorized to manage this team' });
     }
 

@@ -19,8 +19,31 @@ router.get('/', authenticate, async (req, res) => {
       if (teamId) query.team = teamId;
       if (projectId) query.project = projectId;
     }
-    // ADMIN can see global and their team templates
-    else if (req.user.role === 'ADMIN') {
+    // ADMIN can see global and templates for teams with their LVLs
+    else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      // Find teams that have at least one of the ADMIN's LVLs
+      const Team = (await import('../models/Team.js')).default;
+      const teams = await Team.find({ lvls: { $in: req.user.lvls } }).select('_id');
+      const teamIds = teams.map(t => t._id);
+      
+      query.$or = [
+        { scope: 'GLOBAL' },
+        { team: { $in: teamIds } },
+      ];
+      if (teamId && teamIds.some(id => id.toString() === teamId)) {
+        query.team = teamId;
+      }
+      if (projectId) {
+        // Find projects using ADMIN's LVLs
+        const Project = (await import('../models/Project.js')).default;
+        const projects = await Project.find({ lvls: { $in: req.user.lvls } }).select('_id');
+        const projectIds = projects.map(p => p._id);
+        if (projectIds.some(id => id.toString() === projectId)) {
+          query.project = projectId;
+        }
+      }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN can see global and their team templates (if no LVLs assigned yet)
       query.$or = [
         { scope: 'GLOBAL' },
         { team: { $in: req.user.teams } },
@@ -164,8 +187,35 @@ router.post('/', authenticate, async (req, res) => {
         finalTeamId = teamId;
         finalProjectId = projectId || null;
       }
-    } else if (req.user.role === 'ADMIN' || req.user.role === 'TEAM_LEADER') {
-      // Can only create team or project templates
+    } else if (req.user.role === 'ADMIN') {
+      // ADMIN can create TEAM templates for teams with their LVLs
+      if (!teamId) {
+        return res.status(400).json({ error: 'Team ID is required for your role' });
+      }
+      // Check if ADMIN has access to this team based on LVLs
+      if (req.user.lvls && req.user.lvls.length > 0) {
+        const Team = (await import('../models/Team.js')).default;
+        const team = await Team.findById(teamId).select('lvls');
+        if (team) {
+          const teamLvlIds = team.lvls.map(id => id.toString());
+          const adminLvlIds = req.user.lvls.map(id => id.toString());
+          const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+          if (!hasMatchingLvl) {
+            return res.status(403).json({ error: 'Not authorized to create templates for this team' });
+          }
+        }
+      } else {
+        // Fallback: ADMIN can create templates for their teams (if no LVLs assigned yet)
+        if (!req.user.teams.includes(teamId)) {
+          return res.status(403).json({ error: 'Not authorized to create templates for this team' });
+        }
+      }
+      // ADMIN can only create TEAM templates (not PROJECT)
+      finalScope = 'TEAM';
+      finalTeamId = teamId;
+      finalProjectId = null;
+    } else if (req.user.role === 'TEAM_LEADER') {
+      // TEAM_LEADER can create TEAM or PROJECT templates for their teams
       if (!teamId) {
         return res.status(400).json({ error: 'Team ID is required for your role' });
       }
@@ -176,16 +226,8 @@ router.post('/', authenticate, async (req, res) => {
       finalTeamId = teamId;
       finalProjectId = projectId || null;
     } else {
-      // TEAM_MEMBER can only create team templates
-      if (!teamId) {
-        return res.status(400).json({ error: 'Team ID is required' });
-      }
-      if (!req.user.teams.includes(teamId)) {
-        return res.status(403).json({ error: 'Not authorized to create templates for this team' });
-      }
-      finalScope = 'TEAM';
-      finalTeamId = teamId;
-      finalProjectId = null;
+      // TEAM_MEMBER cannot create templates
+      return res.status(403).json({ error: 'TEAM_MEMBER cannot create templates' });
     }
 
     // Prepare component references with denormalized names
@@ -235,7 +277,7 @@ router.post('/', authenticate, async (req, res) => {
 // PUT /api/prompt-templates/:id - Update template
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const { name, description, prompt } = req.body;
+    const { name, description, prompt, useComponents, componentReferences } = req.body;
     const template = await PromptTemplate.findById(req.params.id);
 
     if (!template) {
@@ -248,13 +290,35 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     if (template.scope === 'TEAM' && template.team) {
-      if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN' && req.user.role !== 'TEAM_LEADER') {
+      if (req.user.role === 'SUPER_ADMIN') {
+        // SUPER_ADMIN can edit any template
+      } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+        // ADMIN can edit TEAM templates for teams with their LVLs
+        const Team = (await import('../models/Team.js')).default;
+        const team = await Team.findById(template.team).select('lvls');
+        if (team) {
+          const teamLvlIds = team.lvls.map(id => id.toString());
+          const adminLvlIds = req.user.lvls.map(id => id.toString());
+          const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+          if (!hasMatchingLvl) {
+            return res.status(403).json({ error: 'Not authorized to edit this template' });
+          }
+        }
+      } else if (req.user.role === 'ADMIN') {
+        // Fallback: ADMIN can edit templates for their teams (if no LVLs assigned yet)
+        if (!req.user.teams.includes(template.team.toString())) {
+          return res.status(403).json({ error: 'Not authorized to edit this template' });
+        }
+      } else if (req.user.role === 'TEAM_LEADER') {
+        // TEAM_LEADER can edit templates for their teams
+        if (!req.user.teams.includes(template.team.toString())) {
+          return res.status(403).json({ error: 'Not authorized to edit this template' });
+        }
+      } else {
+        // Others can only edit their own templates
         if (template.createdBy.toString() !== req.user.id) {
           return res.status(403).json({ error: 'Not authorized to edit this template' });
         }
-      }
-      if (req.user.role !== 'SUPER_ADMIN' && !req.user.teams.includes(template.team.toString())) {
-        return res.status(403).json({ error: 'Not authorized to edit this template' });
       }
     }
 
@@ -337,13 +401,35 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 
     if (template.scope === 'TEAM' && template.team) {
-      if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN' && req.user.role !== 'TEAM_LEADER') {
+      if (req.user.role === 'SUPER_ADMIN') {
+        // SUPER_ADMIN can delete any template
+      } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+        // ADMIN can delete TEAM templates for teams with their LVLs
+        const Team = (await import('../models/Team.js')).default;
+        const team = await Team.findById(template.team).select('lvls');
+        if (team) {
+          const teamLvlIds = team.lvls.map(id => id.toString());
+          const adminLvlIds = req.user.lvls.map(id => id.toString());
+          const hasMatchingLvl = teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
+          if (!hasMatchingLvl) {
+            return res.status(403).json({ error: 'Not authorized to delete this template' });
+          }
+        }
+      } else if (req.user.role === 'ADMIN') {
+        // Fallback: ADMIN can delete templates for their teams (if no LVLs assigned yet)
+        if (!req.user.teams.includes(template.team.toString())) {
+          return res.status(403).json({ error: 'Not authorized to delete this template' });
+        }
+      } else if (req.user.role === 'TEAM_LEADER') {
+        // TEAM_LEADER can delete templates for their teams
+        if (!req.user.teams.includes(template.team.toString())) {
+          return res.status(403).json({ error: 'Not authorized to delete this template' });
+        }
+      } else {
+        // Others can only delete their own templates
         if (template.createdBy.toString() !== req.user.id) {
           return res.status(403).json({ error: 'Not authorized to delete this template' });
         }
-      }
-      if (req.user.role !== 'SUPER_ADMIN' && !req.user.teams.includes(template.team.toString())) {
-        return res.status(403).json({ error: 'Not authorized to delete this template' });
       }
     }
 

@@ -28,7 +28,7 @@ export async function authenticate(req, res, next) {
     }
 
     // Fetch user from database to ensure they still exist and get latest data
-    const user = await User.findById(decoded.id).populate('teams');
+    const user = await User.findById(decoded.id).populate('teams').populate('lvls', 'name code');
     if (!user) {
       return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
     }
@@ -40,6 +40,7 @@ export async function authenticate(req, res, next) {
       name: user.name,
       role: user.role,
       teams: user.teams.map(team => team._id.toString()),
+      lvls: user.lvls ? user.lvls.map(lvl => lvl._id.toString()) : [],
     };
 
     next();
@@ -67,7 +68,7 @@ export async function optionalAuthenticate(req, res, next) {
     if (token) {
       const decoded = verifyToken(token);
       if (decoded) {
-        const user = await User.findById(decoded.id).populate('teams');
+        const user = await User.findById(decoded.id).populate('teams').populate('lvls', 'name code');
         if (user) {
           req.user = {
             id: user._id.toString(),
@@ -75,6 +76,7 @@ export async function optionalAuthenticate(req, res, next) {
             name: user.name,
             role: user.role,
             teams: user.teams.map(team => team._id.toString()),
+            lvls: user.lvls ? user.lvls.map(lvl => lvl._id.toString()) : [],
           };
         }
       }
