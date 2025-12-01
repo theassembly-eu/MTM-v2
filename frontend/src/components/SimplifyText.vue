@@ -1396,8 +1396,30 @@ onMounted(async () => {
     teamsCount: teams.value.length,
     userTeams: user.value?.teams,
     userRole: user.value?.role,
+    availableTeamsCount: availableTeams.value.length,
+    selectedTeamId: selectedTeamId.value,
   });
+  
+  // Try to auto-select team after all data is loaded
+  await nextTick();
+  if (availableTeams.value.length === 1 && !selectedTeamId.value) {
+    const teamId = String(availableTeams.value[0].id);
+    console.log('Auto-selecting team after data load:', teamId, availableTeams.value[0].name);
+    selectedTeamId.value = teamId;
+    onTeamChange();
+  }
 });
+
+// Watch for user data changes and auto-select team
+watch([user, teams], async () => {
+  await nextTick();
+  if (availableTeams.value.length === 1 && !selectedTeamId.value && teams.value.length > 0) {
+    const teamId = String(availableTeams.value[0].id);
+    console.log('Auto-selecting team from watcher:', teamId, availableTeams.value[0].name);
+    selectedTeamId.value = teamId;
+    onTeamChange();
+  }
+}, { immediate: false });
 </script>
 
 <style scoped>
