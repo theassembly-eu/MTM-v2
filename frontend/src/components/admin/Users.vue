@@ -189,6 +189,65 @@ watch(() => userForm.value.role, (newRole) => {
   }
 });
 
+// Validation state
+const validationErrors = ref({});
+const touched = ref({});
+
+function touchField(field) {
+  touched.value[field] = true;
+  validateField(field);
+}
+
+function validateField(field) {
+  const value = userForm.value[field];
+  delete validationErrors.value[field];
+
+  if (field === 'email') {
+    if (!value || !value.trim()) {
+      validationErrors.value[field] = 'E-mailadres is verplicht';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      validationErrors.value[field] = 'Ongeldig e-mailadres';
+    }
+  } else if (field === 'password') {
+    if (!editingUser.value && (!value || !value.trim())) {
+      validationErrors.value[field] = 'Wachtwoord is verplicht';
+    } else if (value && value.length < 8) {
+      validationErrors.value[field] = 'Wachtwoord moet minimaal 8 tekens bevatten';
+    }
+  } else if (field === 'role') {
+    if (!value) {
+      validationErrors.value[field] = 'Rol is verplicht';
+    }
+  } else if (field === 'lvls') {
+    if (isSuperAdmin.value && userForm.value.role === 'ADMIN') {
+      if (!value || value.length === 0) {
+        validationErrors.value[field] = 'Selecteer ten minste één LVL voor ADMIN gebruikers';
+      }
+    }
+  }
+}
+
+function validateForm() {
+  Object.keys(userForm.value).forEach(field => {
+    touchField(field);
+  });
+  return Object.keys(validationErrors.value).length === 0;
+}
+
+function resetValidation() {
+  validationErrors.value = {};
+  touched.value = {};
+}
+
+function getFieldError(field) {
+  if (!touched.value[field]) return null;
+  return validationErrors.value[field] || null;
+}
+
+function hasFieldError(field) {
+  return touched.value[field] && !!validationErrors.value[field];
+}
+
 function getUserTeamNames(user) {
   if (!user.teams || user.teams.length === 0) return 'Geen teams';
   return user.teams.map(team => team.name || team).join(', ');
