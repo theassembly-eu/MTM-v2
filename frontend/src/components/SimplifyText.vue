@@ -526,7 +526,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../composables/useAuth.js';
 import DOMPurify from 'dompurify';
