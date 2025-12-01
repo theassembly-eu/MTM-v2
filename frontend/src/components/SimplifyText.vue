@@ -1411,6 +1411,16 @@ onMounted(async () => {
   opacity: 0.6;
 }
 
+.auto-selected-value {
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
 .form-group textarea {
   min-height: 180px;
   resize: vertical;
