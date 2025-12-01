@@ -484,26 +484,83 @@ router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), 
     else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
       const projects = await Project.find({ lvls: { $in: req.user.lvls } }).select('_id');
       const projectIds = projects.map(p => p._id);
+      if (projectIds.length === 0) {
+        // No projects match, return empty result
+        return res.json({
+          data: [],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
       query.project = { $in: projectIds };
     }
     // TEAM_LEADER sees queue for their teams
     else if (req.user.role === 'TEAM_LEADER') {
+      if (!req.user.teams || req.user.teams.length === 0) {
+        // No teams, return empty result
+        return res.json({
+          data: [],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
       query.team = { $in: req.user.teams };
     }
 
     const logs = await RequestLog.find(query)
       .populate('user', 'email name')
       .populate('team', 'name')
-      .populate('project', 'name')
+      .populate('project', 'name lvls')
       .populate('lvl', 'name code')
       .populate('targetAudience', 'name')
       .populate('outputFormat', 'name')
-      .populate('approvalMeta.taggedAsCandidate.by', 'email name')
-      .populate('approvalMeta.verified.by', 'email name')
       .populate('comments.user', 'email name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum);
+
+    // Manually populate nested approvalMeta user references
+    const User = (await import('../models/User.js')).default;
+    for (const log of logs) {
+      if (log.approvalMeta?.taggedAsCandidate?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.taggedAsCandidate.by).select('email name');
+          if (user) {
+            log.approvalMeta.taggedAsCandidate.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating taggedAsCandidate.by:', err);
+        }
+      }
+      if (log.approvalMeta?.verified?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.verified.by).select('email name');
+          if (user) {
+            log.approvalMeta.verified.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating verified.by:', err);
+        }
+      }
+      if (log.approvalMeta?.approved?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.approved.by).select('email name');
+          if (user) {
+            log.approvalMeta.approved.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating approved.by:', err);
+        }
+      }
+    }
 
     const total = await RequestLog.countDocuments(query);
     const totalPages = Math.ceil(total / limitNum);
@@ -519,7 +576,7 @@ router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), 
     });
   } catch (error) {
     console.error('Error fetching approval queue:', error);
-    res.status(500).json({ error: 'Failed to fetch approval queue', code: 'QUEUE_ERROR' });
+    res.status(500).json({ error: 'Failed to fetch approval queue', code: 'QUEUE_ERROR', details: error.message });
   }
 });
 
