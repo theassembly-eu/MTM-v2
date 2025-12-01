@@ -22,9 +22,14 @@ router.get('/', authenticate, async (req, res) => {
         .populate('members', 'email name role');
     } else {
       // Other users only see teams they belong to
-      teams = await Team.find({ members: req.user.id })
-        .populate('lvls', 'name code')
-        .populate('members', 'email name role');
+      // Use user's teams array (more reliable than team's members array)
+      if (!req.user.teams || req.user.teams.length === 0) {
+        teams = [];
+      } else {
+        teams = await Team.find({ _id: { $in: req.user.teams } })
+          .populate('lvls', 'name code')
+          .populate('members', 'email name role');
+      }
     }
 
     res.json(teams);
