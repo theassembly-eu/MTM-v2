@@ -737,7 +737,8 @@ watch(selectedStatus, () => {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  padding: var(--spacing-1) var(--spacing-3);
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
@@ -745,31 +746,40 @@ watch(selectedStatus, () => {
   letter-spacing: 0.05em;
   white-space: nowrap;
   flex-shrink: 0;
+  border: 1px solid transparent;
+  transition: all var(--transition-base);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .status-draft {
-  background: #E5E7EB;
-  color: #6B7280;
+  background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+  color: #4B5563;
+  border-color: #D1D5DB;
 }
 
 .status-candidate {
-  background: #DBEAFE;
+  background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
   color: #1E40AF;
+  border-color: #93C5FD;
 }
 
 .status-verified {
-  background: #FEF3C7;
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
   color: #92400E;
+  border-color: #FCD34D;
 }
 
 .status-approved {
-  background: #D1FAE5;
-  color: #065F46;
+  background: linear-gradient(135deg, #A7F3D0 0%, #6EE7B7 100%);
+  color: #064E3B;
+  border-color: #34D399;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .status-rejected {
-  background: #FEE2E2;
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
   color: #991B1B;
+  border-color: #FCA5A5;
 }
 
 .result-meta {
