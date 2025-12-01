@@ -208,6 +208,7 @@
           <button @click="showApprovedContentModal = false" class="btn-close">×</button>
         </div>
         
+        <div class="modal-body-content">
         <div class="approved-content-filters">
           <div class="filter-row">
             <div class="filter-group">
@@ -374,6 +375,7 @@
               Volgende
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>
