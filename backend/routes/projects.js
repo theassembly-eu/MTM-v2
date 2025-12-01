@@ -27,10 +27,14 @@ router.get('/', authenticate, async (req, res) => {
         if (!req.user.teams.includes(teamId)) {
           return res.status(403).json({ error: 'Not authorized to view projects for this team' });
         }
-      } else {
-        if (!req.user.teams.includes(teamId)) {
+      } else if (req.user.role === 'TEAM_LEADER' || req.user.role === 'TEAM_MEMBER') {
+        // TEAM_LEADER and TEAM_MEMBER can only see projects from their teams
+        if (!req.user.teams || !req.user.teams.includes(teamId)) {
           return res.status(403).json({ error: 'Not authorized to view projects for this team' });
         }
+      } else {
+        // Unknown role
+        return res.status(403).json({ error: 'Not authorized to view projects for this team' });
       }
     } else {
       // If no teamId, filter by permissions
@@ -39,11 +43,19 @@ router.get('/', authenticate, async (req, res) => {
       } else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
         // ADMIN sees projects using their assigned LVLs
         query.lvls = { $in: req.user.lvls };
+      } else if (req.user.role === 'TEAM_LEADER' || req.user.role === 'TEAM_MEMBER') {
+        // TEAM_LEADER and TEAM_MEMBER only see projects from their teams
+        if (!req.user.teams || req.user.teams.length === 0) {
+          query.team = { $in: [] }; // Empty array = no results
+        } else {
+          query.team = { $in: req.user.teams };
+        }
       } else if (req.user.role === 'ADMIN') {
         // Fallback: ADMIN sees projects from their teams (if no LVLs assigned yet)
-        query.team = { $in: req.user.teams };
+        query.team = { $in: req.user.teams || [] };
       } else {
-        query.team = { $in: req.user.teams };
+        // Unknown role - return empty
+        query.team = { $in: [] };
       }
     }
 

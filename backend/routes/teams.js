@@ -20,8 +20,8 @@ router.get('/', authenticate, async (req, res) => {
       teams = await Team.find({ lvls: { $in: req.user.lvls } })
         .populate('lvls', 'name code')
         .populate('members', 'email name role');
-    } else {
-      // Other users only see teams they belong to
+    } else if (req.user.role === 'TEAM_LEADER' || req.user.role === 'TEAM_MEMBER') {
+      // TEAM_LEADER and TEAM_MEMBER only see teams they belong to
       // Use user's teams array (more reliable than team's members array)
       if (!req.user.teams || req.user.teams.length === 0) {
         teams = [];
@@ -30,6 +30,18 @@ router.get('/', authenticate, async (req, res) => {
           .populate('lvls', 'name code')
           .populate('members', 'email name role');
       }
+    } else if (req.user.role === 'ADMIN') {
+      // Fallback: ADMIN without LVLs sees teams from their teams array
+      if (!req.user.teams || req.user.teams.length === 0) {
+        teams = [];
+      } else {
+        teams = await Team.find({ _id: { $in: req.user.teams } })
+          .populate('lvls', 'name code')
+          .populate('members', 'email name role');
+      }
+    } else {
+      // Unknown role - return empty
+      teams = [];
     }
 
     res.json(teams);
