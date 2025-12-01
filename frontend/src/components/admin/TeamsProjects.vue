@@ -475,6 +475,22 @@ function teamProjects(teamId) {
   return projects.value.filter(p => p.team === teamId || p.team?.id === teamId);
 }
 
+const filteredTeams = computed(() => {
+  if (!teamSearchQuery.value.trim()) {
+    return teams.value;
+  }
+  
+  const query = teamSearchQuery.value.toLowerCase().trim();
+  return teams.value.filter(team => {
+    const name = (team.name || '').toLowerCase();
+    return name.includes(query);
+  });
+});
+
+function handleTeamSearch(query) {
+  // Search is handled by computed property
+}
+
 function getTeamLvlNames(team) {
   if (!team.lvls) return 'Geen';
   return team.lvls.map(lvlId => {

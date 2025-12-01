@@ -176,6 +176,24 @@ const selectedProjectName = computed(() => {
   return project?.name || '';
 });
 
+const filteredReferences = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return references.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  return references.value.filter(ref => {
+    const title = (ref.title || '').toLowerCase();
+    const url = (ref.url || '').toLowerCase();
+    const keywords = (ref.keywords || []).join(' ').toLowerCase();
+    return title.includes(query) || url.includes(query) || keywords.includes(query);
+  });
+});
+
+function handleSearch(query) {
+  // Search is handled by computed property
+}
+
 function onTypeChange() {
   if (referenceForm.value.type === 'KEYWORDS') {
     referenceForm.value.url = '';
