@@ -5,6 +5,30 @@
       <p class="page-subtitle">Platform gebruik, statistieken en prompt management inzichten</p>
     </div>
 
+    <!-- LVL Filter Indicator (for ADMIN users) -->
+    <div v-if="isAdmin && userLvls.length > 0" class="filter-indicator">
+      <div class="filter-indicator-content">
+        <div class="filter-indicator-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+        </div>
+        <div class="filter-indicator-text">
+          <span class="filter-indicator-label">Gefilterd op administratieve niveaus:</span>
+          <div class="filter-lvl-badges">
+            <span 
+              v-for="lvl in userLvls" 
+              :key="lvl.id" 
+              class="lvl-badge"
+            >
+              {{ lvl.name }}
+              <span class="lvl-code">({{ lvl.code }})</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Date Filter -->
     <div class="filters card">
       <div class="filter-group">
@@ -522,6 +546,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { useAuth } from '../../composables/useAuth.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -552,12 +577,32 @@ const LineChart = Line;
 const BarChart = Bar;
 const DoughnutChart = Doughnut;
 
+const { user, hasRole } = useAuth();
+
 const loading = ref(false);
 const error = ref(null);
 const analytics = ref(null);
 const startDate = ref('');
 const endDate = ref('');
 const activeTab = ref('overview');
+
+// User role and LVL information
+const isAdmin = computed(() => hasRole('ADMIN'));
+const isSuperAdmin = computed(() => hasRole('SUPER_ADMIN'));
+const userLvls = computed(() => {
+  if (!user.value || !user.value.lvls || !Array.isArray(user.value.lvls)) return [];
+  // Handle both object format (from login) and ID format
+  return user.value.lvls.map(lvl => {
+    if (typeof lvl === 'object' && lvl !== null) {
+      return {
+        id: lvl.id || lvl._id,
+        name: lvl.name || 'Unknown',
+        code: lvl.code || '',
+      };
+    }
+    return { id: lvl, name: 'Unknown', code: '' };
+  });
+});
 
 const tabs = computed(() => [
   { id: 'overview', label: 'Overzicht', icon: '📊' },
@@ -905,6 +950,89 @@ onMounted(() => {
   font-size: var(--font-size-lg);
   color: var(--color-text-secondary);
   margin: 0;
+}
+
+.filter-indicator {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4) var(--spacing-5);
+  margin-bottom: var(--spacing-6);
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-base);
+}
+
+.filter-indicator:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.filter-indicator-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.filter-indicator-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-indicator-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.filter-indicator-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.filter-indicator-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.filter-lvl-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+.lvl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+  transition: all var(--transition-base);
+}
+
+.lvl-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.lvl-code {
+  opacity: 0.85;
+  font-weight: var(--font-weight-normal);
+  font-size: 0.9em;
 }
 
 .filters {
@@ -1330,6 +1458,15 @@ onMounted(() => {
 }
 
 @media (max-width: 1024px) {
+  .filter-indicator-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+  }
+
+  .filter-indicator-icon {
+    align-self: flex-start;
+  }
   .charts-row {
     grid-template-columns: 1fr;
   }
@@ -1340,6 +1477,18 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .filter-indicator {
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .filter-indicator-label {
+    font-size: var(--font-size-xs);
+  }
+
+  .lvl-badge {
+    font-size: 0.7rem;
+    padding: var(--spacing-1) var(--spacing-2);
+  }
   .charts-row {
     grid-template-columns: 1fr;
   }
