@@ -113,6 +113,123 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/request-logs/approval-queue - Get texts pending approval (TEAM_LEADER or ADMIN)
+// NOTE: This must come BEFORE /:id route to avoid route conflicts
+router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    let query = {
+      approvalStatus: { $in: ['CANDIDATE', 'VERIFIED'] }, // Pending verification or approval
+    };
+
+    // SUPER_ADMIN sees all
+    if (req.user.role === 'SUPER_ADMIN') {
+      // No additional filters
+    }
+    // ADMIN sees queue for their LVLs
+    else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
+      const projects = await Project.find({ lvls: { $in: req.user.lvls } }).select('_id');
+      const projectIds = projects.map(p => p._id);
+      if (projectIds.length === 0) {
+        // No projects match, return empty result
+        return res.json({
+          data: [],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      query.project = { $in: projectIds };
+    }
+    // TEAM_LEADER sees queue for their teams
+    else if (req.user.role === 'TEAM_LEADER') {
+      if (!req.user.teams || req.user.teams.length === 0) {
+        // No teams, return empty result
+        return res.json({
+          data: [],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      query.team = { $in: req.user.teams };
+    }
+
+    const logs = await RequestLog.find(query)
+      .populate('user', 'email name')
+      .populate('team', 'name')
+      .populate('project', 'name lvls')
+      .populate('lvl', 'name code')
+      .populate('targetAudience', 'name')
+      .populate('outputFormat', 'name')
+      .populate('comments.user', 'email name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    // Manually populate nested approvalMeta user references
+    const User = (await import('../models/User.js')).default;
+    for (const log of logs) {
+      if (log.approvalMeta?.taggedAsCandidate?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.taggedAsCandidate.by).select('email name');
+          if (user) {
+            log.approvalMeta.taggedAsCandidate.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating taggedAsCandidate.by:', err);
+        }
+      }
+      if (log.approvalMeta?.verified?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.verified.by).select('email name');
+          if (user) {
+            log.approvalMeta.verified.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating verified.by:', err);
+        }
+      }
+      if (log.approvalMeta?.approved?.by) {
+        try {
+          const user = await User.findById(log.approvalMeta.approved.by).select('email name');
+          if (user) {
+            log.approvalMeta.approved.by = user;
+          }
+        } catch (err) {
+          console.error('Error populating approved.by:', err);
+        }
+      }
+    }
+
+    const total = await RequestLog.countDocuments(query);
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.json({
+      data: logs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching approval queue:', error);
+    res.status(500).json({ error: 'Failed to fetch approval queue', code: 'QUEUE_ERROR', details: error.message });
+  }
+});
+
 // GET /api/request-logs/:id - Get single request log
 router.get('/:id', authenticate, async (req, res) => {
   try {
@@ -461,122 +578,6 @@ router.delete('/:id/comments/:commentId', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error deleting comment:', error);
     res.status(500).json({ error: 'Failed to delete comment', code: 'COMMENT_DELETE_ERROR' });
-  }
-});
-
-// GET /api/request-logs/approval-queue - Get texts pending approval (TEAM_LEADER or ADMIN)
-router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    let query = {
-      approvalStatus: { $in: ['CANDIDATE', 'VERIFIED'] }, // Pending verification or approval
-    };
-
-    // SUPER_ADMIN sees all
-    if (req.user.role === 'SUPER_ADMIN') {
-      // No additional filters
-    }
-    // ADMIN sees queue for their LVLs
-    else if (req.user.role === 'ADMIN' && req.user.lvls && req.user.lvls.length > 0) {
-      const projects = await Project.find({ lvls: { $in: req.user.lvls } }).select('_id');
-      const projectIds = projects.map(p => p._id);
-      if (projectIds.length === 0) {
-        // No projects match, return empty result
-        return res.json({
-          data: [],
-          pagination: {
-            page: pageNum,
-            limit: limitNum,
-            total: 0,
-            totalPages: 0,
-          },
-        });
-      }
-      query.project = { $in: projectIds };
-    }
-    // TEAM_LEADER sees queue for their teams
-    else if (req.user.role === 'TEAM_LEADER') {
-      if (!req.user.teams || req.user.teams.length === 0) {
-        // No teams, return empty result
-        return res.json({
-          data: [],
-          pagination: {
-            page: pageNum,
-            limit: limitNum,
-            total: 0,
-            totalPages: 0,
-          },
-        });
-      }
-      query.team = { $in: req.user.teams };
-    }
-
-    const logs = await RequestLog.find(query)
-      .populate('user', 'email name')
-      .populate('team', 'name')
-      .populate('project', 'name lvls')
-      .populate('lvl', 'name code')
-      .populate('targetAudience', 'name')
-      .populate('outputFormat', 'name')
-      .populate('comments.user', 'email name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum);
-
-    // Manually populate nested approvalMeta user references
-    const User = (await import('../models/User.js')).default;
-    for (const log of logs) {
-      if (log.approvalMeta?.taggedAsCandidate?.by) {
-        try {
-          const user = await User.findById(log.approvalMeta.taggedAsCandidate.by).select('email name');
-          if (user) {
-            log.approvalMeta.taggedAsCandidate.by = user;
-          }
-        } catch (err) {
-          console.error('Error populating taggedAsCandidate.by:', err);
-        }
-      }
-      if (log.approvalMeta?.verified?.by) {
-        try {
-          const user = await User.findById(log.approvalMeta.verified.by).select('email name');
-          if (user) {
-            log.approvalMeta.verified.by = user;
-          }
-        } catch (err) {
-          console.error('Error populating verified.by:', err);
-        }
-      }
-      if (log.approvalMeta?.approved?.by) {
-        try {
-          const user = await User.findById(log.approvalMeta.approved.by).select('email name');
-          if (user) {
-            log.approvalMeta.approved.by = user;
-          }
-        } catch (err) {
-          console.error('Error populating approved.by:', err);
-        }
-      }
-    }
-
-    const total = await RequestLog.countDocuments(query);
-    const totalPages = Math.ceil(total / limitNum);
-
-    res.json({
-      data: logs,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching approval queue:', error);
-    res.status(500).json({ error: 'Failed to fetch approval queue', code: 'QUEUE_ERROR', details: error.message });
   }
 });
 
