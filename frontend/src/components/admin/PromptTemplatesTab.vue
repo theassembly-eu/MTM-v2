@@ -1168,6 +1168,28 @@ onMounted(async () => {
   color: #3b82f6;
 }
 
+.btn-loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn-loading .btn-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
 .template-type-badge.full-text {
   background: rgba(156, 163, 175, 0.1);
   color: #6b7280;
