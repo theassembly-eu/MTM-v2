@@ -203,6 +203,13 @@
               </option>
             </select>
             <input
+              v-model="approvedContentTagFilter"
+              type="text"
+              placeholder="Filter op tag..."
+              @input="fetchApprovedContent"
+              class="filter-tag"
+            />
+            <input
               v-model="approvedContentDateFrom"
               type="date"
               @change="fetchApprovedContent"
@@ -254,6 +261,46 @@
               <div class="content-section">
                 <strong>Vereenvoudigde Tekst:</strong>
                 <p class="content-text">{{ truncateText(content.simplifiedText, 200) }}</p>
+              </div>
+              <div class="content-tags">
+                <div v-if="editingTagsFor !== (content._id || content.id)" class="tags-display">
+                  <span v-if="!content.tags || content.tags.length === 0" class="no-tags">Geen tags</span>
+                  <span
+                    v-for="tag in (content.tags || [])"
+                    :key="tag"
+                    class="tag-badge"
+                  >
+                    {{ tag }}
+                    <button
+                      v-if="canDeleteApprovedContent"
+                      @click="removeTag(content, tag)"
+                      class="tag-remove"
+                      title="Verwijder tag"
+                    >
+                      ×
+                    </button>
+                  </span>
+                  <button
+                    v-if="canDeleteApprovedContent"
+                    @click="editTags(content)"
+                    class="btn-tag-add"
+                    title="Tag toevoegen"
+                  >
+                    + Tag
+                  </button>
+                </div>
+                <div v-else class="tags-edit">
+                  <input
+                    v-model="newTagInput"
+                    @keyup.enter="addTag(content)"
+                    @keyup.esc="cancelEditTags"
+                    type="text"
+                    placeholder="Tag naam..."
+                    class="tag-input"
+                  />
+                  <button @click="addTag(content)" class="btn-tag-save">Toevoegen</button>
+                  <button @click="cancelEditTags" class="btn-tag-cancel">Annuleren</button>
+                </div>
               </div>
               <div class="content-footer">
                 <span class="content-approver">
@@ -359,6 +406,9 @@ const approvedContentLvlFilter = ref('');
 const approvedContentFormatFilter = ref('');
 const approvedContentDateFrom = ref('');
 const approvedContentDateTo = ref('');
+const approvedContentTagFilter = ref('');
+const editingTagsFor = ref(null);
+const newTagInput = ref('');
 const approvedContentPagination = ref({
   page: 1,
   limit: 20,
@@ -586,6 +636,9 @@ async function fetchApprovedContent() {
     if (approvedContentDateTo.value) {
       params.dateTo = approvedContentDateTo.value;
     }
+    if (approvedContentTagFilter.value.trim()) {
+      params.tag = approvedContentTagFilter.value.trim();
+    }
     const response = await axios.get(
       `/api/projects/${currentProject.value.id}/approved-content`,
       { params }
@@ -611,8 +664,58 @@ function resetApprovedContentFilters() {
   approvedContentFormatFilter.value = '';
   approvedContentDateFrom.value = '';
   approvedContentDateTo.value = '';
+  approvedContentTagFilter.value = '';
   approvedContentPagination.value.page = 1;
   fetchApprovedContent();
+}
+
+function editTags(content) {
+  editingTagsFor.value = content._id || content.id;
+  newTagInput.value = '';
+}
+
+function cancelEditTags() {
+  editingTagsFor.value = null;
+  newTagInput.value = '';
+}
+
+async function addTag(content) {
+  if (!newTagInput.value.trim()) return;
+  const tag = newTagInput.value.trim().toLowerCase();
+  if (content.tags && content.tags.includes(tag)) {
+    alert('Deze tag bestaat al');
+    return;
+  }
+  try {
+    const response = await axios.put(`/api/approved-content/${content._id || content.id}/tags`, {
+      action: 'add',
+      tag,
+    });
+    const index = approvedContent.value.findIndex(c => (c._id || c.id) === (content._id || content.id));
+    if (index !== -1) {
+      approvedContent.value[index] = response.data;
+    }
+    newTagInput.value = '';
+  } catch (err) {
+    console.error('Error adding tag:', err);
+    alert(err.response?.data?.error || 'Fout bij toevoegen tag');
+  }
+}
+
+async function removeTag(content, tag) {
+  try {
+    const response = await axios.put(`/api/approved-content/${content._id || content.id}/tags`, {
+      action: 'remove',
+      tag,
+    });
+    const index = approvedContent.value.findIndex(c => (c._id || c.id) === (content._id || content.id));
+    if (index !== -1) {
+      approvedContent.value[index] = response.data;
+    }
+  } catch (err) {
+    console.error('Error removing tag:', err);
+    alert(err.response?.data?.error || 'Fout bij verwijderen tag');
+  }
 }
 
 async function fetchLvlsAndFormats() {
@@ -1007,7 +1110,7 @@ h4 {
 
 .filter-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr auto;
   gap: var(--spacing-3);
   align-items: center;
 }
@@ -1112,6 +1215,126 @@ h4 {
   line-height: var(--line-height-relaxed);
   margin: 0;
   white-space: pre-wrap;
+}
+
+.content-tags {
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+.no-tags {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-2);
+  background: #DBEAFE;
+  color: #1E40AF;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.tag-remove {
+  background: transparent;
+  border: none;
+  color: #1E40AF;
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color var(--transition-base);
+}
+
+.tag-remove:hover {
+  background: rgba(30, 64, 175, 0.1);
+}
+
+.btn-tag-add {
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-tag-add:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-primary);
+}
+
+.tags-edit {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+.tag-input {
+  flex: 1;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.tag-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-tag-save,
+.btn-tag-cancel {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-tag-save {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.btn-tag-save:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-tag-cancel {
+  background: var(--color-text-tertiary);
+  color: var(--color-text-inverse);
+}
+
+.btn-tag-cancel:hover {
+  background: #4B5563;
 }
 
 .content-footer {

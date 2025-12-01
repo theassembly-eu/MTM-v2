@@ -84,6 +84,11 @@ router.get('/projects/:projectId/approved-content', authenticate, async (req, re
       }
     }
 
+    // Filter by tag
+    if (req.query.tag) {
+      query.tags = { $in: [req.query.tag.trim().toLowerCase()] };
+    }
+
     const approvedContent = await ApprovedContent.find(query)
       .populate('targetAudience', 'name')
       .populate('outputFormat', 'name')
@@ -219,6 +224,73 @@ router.delete('/projects/:projectId/approved-content/:contentId', authenticate, 
   } catch (error) {
     console.error('Error deleting approved content:', error);
     res.status(500).json({ error: 'Failed to delete approved content', code: 'DELETE_ERROR' });
+  }
+});
+
+// PUT /api/approved-content/:id/tags - Add or remove tags
+router.put('/approved-content/:id/tags', authenticate, requireRoleOrHigher('TEAM_MEMBER'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, tag } = req.body;
+
+    if (!action || !tag) {
+      return res.status(400).json({ error: 'action and tag are required' });
+    }
+
+    if (action !== 'add' && action !== 'remove') {
+      return res.status(400).json({ error: 'action must be "add" or "remove"' });
+    }
+
+    const content = await ApprovedContent.findById(id).populate('project', 'team lvls');
+    if (!content || content.deleted) {
+      return res.status(404).json({ error: 'Approved content not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'SUPER_ADMIN') {
+      // SUPER_ADMIN can edit all
+    } else if (req.user.role === 'ADMIN') {
+      const hasAccess = checkLvlAccessForProject(req.user.lvls, (content.project.lvls || []).map(lvl => lvl._id || lvl));
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Not authorized to edit tags for this content' });
+      }
+    } else { // TEAM_LEADER, TEAM_MEMBER
+      const projectTeamId = content.project.team?._id || content.project.team;
+      if (!req.user.teams.includes(projectTeamId.toString())) {
+        return res.status(403).json({ error: 'Not authorized to edit tags for this content' });
+      }
+    }
+
+    const normalizedTag = tag.trim().toLowerCase();
+    
+    if (action === 'add') {
+      if (!content.tags) {
+        content.tags = [];
+      }
+      if (content.tags.includes(normalizedTag)) {
+        return res.status(400).json({ error: 'Tag already exists' });
+      }
+      content.tags.push(normalizedTag);
+    } else if (action === 'remove') {
+      if (!content.tags || !content.tags.includes(normalizedTag)) {
+        return res.status(400).json({ error: 'Tag does not exist' });
+      }
+      content.tags = content.tags.filter(t => t !== normalizedTag);
+    }
+
+    await content.save();
+
+    const updatedContent = await ApprovedContent.findById(id)
+      .populate('targetAudience', 'name')
+      .populate('outputFormat', 'name')
+      .populate('lvl', 'name code')
+      .populate('approvedBy', 'email name')
+      .populate('metadata.originalUser', 'email name');
+
+    res.json(updatedContent);
+  } catch (error) {
+    console.error('Error updating tags:', error);
+    res.status(500).json({ error: 'Failed to update tags', code: 'TAG_UPDATE_ERROR' });
   }
 });
 
