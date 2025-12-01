@@ -67,7 +67,7 @@ const routes = [
     path: '/admin/analytics',
     name: 'AdminAnalytics',
     component: Analytics,
-    meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN'] },
+    meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN', 'ADMIN'] },
   },
   {
     path: '/admin/ab-tests',
