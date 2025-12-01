@@ -161,6 +161,7 @@ const selectedProjectId = ref('');
 const showCreateModal = ref(false);
 const editingReference = ref(null);
 const newKeyword = ref('');
+const searchQuery = ref('');
 
 const referenceForm = ref({
   type: '',
