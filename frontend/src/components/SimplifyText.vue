@@ -614,12 +614,32 @@ const availableTeams = computed(() => {
 });
 
 const availableProjects = computed(() => {
-  if (!selectedTeamId.value) return [];
+  if (!selectedTeamId.value) {
+    console.log('No team selected, availableProjects empty');
+    return [];
+  }
   const teamIdStr = String(selectedTeamId.value);
-  return projects.value.filter(p => {
-    const projectTeamId = p.team?.id ? String(p.team.id) : String(p.team || '');
-    return projectTeamId === teamIdStr;
+  console.log('Filtering projects for team:', teamIdStr, 'Total projects:', projects.value.length);
+  const filtered = projects.value.filter(p => {
+    // Handle different team ID formats
+    let projectTeamId = '';
+    if (p.team) {
+      if (typeof p.team === 'object' && p.team.id) {
+        projectTeamId = String(p.team.id);
+      } else if (typeof p.team === 'object' && p.team._id) {
+        projectTeamId = String(p.team._id);
+      } else {
+        projectTeamId = String(p.team);
+      }
+    }
+    const matches = projectTeamId === teamIdStr;
+    if (matches) {
+      console.log('Project match:', p.name, 'team:', projectTeamId);
+    }
+    return matches;
   });
+  console.log('Available projects:', filtered.length, filtered.map(p => p.name));
+  return filtered;
 });
 
 const availableLvls = computed(() => {
@@ -856,10 +876,22 @@ async function fetchProjects() {
         });
       }
       
+      // Normalize team ID - ensure it's always a string
+      let normalizedTeamId = '';
+      if (project.team) {
+        if (typeof project.team === 'object') {
+          normalizedTeamId = String(project.team._id || project.team.id || project.team);
+        } else {
+          normalizedTeamId = String(project.team);
+        }
+      } else if (project.teamId) {
+        normalizedTeamId = String(project.teamId);
+      }
+      
       return {
         id: String(project._id || project.id),
         name: project.name,
-        team: project.team?._id || project.team || project.teamId,
+        team: normalizedTeamId,
         lvls: normalizedLvls,
       };
     });
