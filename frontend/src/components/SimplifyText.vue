@@ -621,20 +621,13 @@ const availableProjects = computed(() => {
   const teamIdStr = String(selectedTeamId.value);
   console.log('Filtering projects for team:', teamIdStr, 'Total projects:', projects.value.length);
   const filtered = projects.value.filter(p => {
-    // Handle different team ID formats
-    let projectTeamId = '';
-    if (p.team) {
-      if (typeof p.team === 'object' && p.team.id) {
-        projectTeamId = String(p.team.id);
-      } else if (typeof p.team === 'object' && p.team._id) {
-        projectTeamId = String(p.team._id);
-      } else {
-        projectTeamId = String(p.team);
-      }
-    }
+    // Team is stored as a normalized string in fetchProjects
+    const projectTeamId = String(p.team || '');
     const matches = projectTeamId === teamIdStr;
     if (matches) {
-      console.log('Project match:', p.name, 'team:', projectTeamId);
+      console.log('Project match:', p.name, 'team:', projectTeamId, 'selectedTeam:', teamIdStr);
+    } else {
+      console.log('Project no match:', p.name, 'projectTeam:', projectTeamId, 'selectedTeam:', teamIdStr);
     }
     return matches;
   });
