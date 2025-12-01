@@ -202,7 +202,7 @@
 
     <!-- Approved Content Library Modal -->
     <div v-if="showApprovedContentModal" class="modal-overlay" @click="showApprovedContentModal = false">
-      <div class="modal approved-content-modal" @click.stop>
+      <div class="modal approved-content-modal large-modal" @click.stop>
         <div class="modal-header">
           <h3>Goedgekeurde Teksten - {{ currentProject?.name }}</h3>
           <button @click="showApprovedContentModal = false" class="btn-close">×</button>
@@ -210,46 +210,64 @@
         
         <div class="approved-content-filters">
           <div class="filter-row">
-            <input
-              v-model="approvedContentSearch"
-              type="text"
-              placeholder="Zoeken in teksten..."
-              class="search-input"
-            />
-            <select v-model="approvedContentLvlFilter" @change="fetchApprovedContent" class="filter-select">
-              <option value="">Alle LVLs</option>
-              <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
-                {{ lvl.name }}
-              </option>
-            </select>
-            <select v-model="approvedContentFormatFilter" @change="fetchApprovedContent" class="filter-select">
-              <option value="">Alle formaten</option>
-              <option v-for="format in availableFormats" :key="format.id" :value="format.id">
-                {{ format.name }}
-              </option>
-            </select>
-            <input
-              v-model="approvedContentTagFilter"
-              type="text"
-              placeholder="Filter op tag..."
-              @input="fetchApprovedContent"
-              class="filter-tag"
-            />
-            <input
-              v-model="approvedContentDateFrom"
-              type="date"
-              @change="fetchApprovedContent"
-              class="filter-date"
-              placeholder="Vanaf"
-            />
-            <input
-              v-model="approvedContentDateTo"
-              type="date"
-              @change="fetchApprovedContent"
-              class="filter-date"
-              placeholder="Tot"
-            />
-            <button @click="resetApprovedContentFilters" class="btn-filter-reset">Reset</button>
+            <div class="filter-group">
+              <label>Zoeken</label>
+              <input
+                v-model="approvedContentSearch"
+                type="text"
+                placeholder="Zoeken in teksten..."
+                class="search-input"
+              />
+            </div>
+            <div class="filter-group">
+              <label>LVL</label>
+              <select v-model="approvedContentLvlFilter" @change="fetchApprovedContent" class="filter-select">
+                <option value="">Alle LVLs</option>
+                <option v-for="lvl in availableLvls" :key="lvl.id" :value="lvl.id">
+                  {{ lvl.name }}
+                </option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Formaat</label>
+              <select v-model="approvedContentFormatFilter" @change="fetchApprovedContent" class="filter-select">
+                <option value="">Alle formaten</option>
+                <option v-for="format in availableFormats" :key="format.id" :value="format.id">
+                  {{ format.name }}
+                </option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Tag</label>
+              <input
+                v-model="approvedContentTagFilter"
+                type="text"
+                placeholder="Filter op tag..."
+                @input="fetchApprovedContent"
+                class="filter-tag"
+              />
+            </div>
+            <div class="filter-group">
+              <label>Vanaf</label>
+              <input
+                v-model="approvedContentDateFrom"
+                type="date"
+                @change="fetchApprovedContent"
+                class="filter-date"
+              />
+            </div>
+            <div class="filter-group">
+              <label>Tot</label>
+              <input
+                v-model="approvedContentDateTo"
+                type="date"
+                @change="fetchApprovedContent"
+                class="filter-date"
+              />
+            </div>
+            <div class="filter-group filter-actions">
+              <button @click="resetApprovedContentFilters" class="btn-filter-reset">Reset</button>
+            </div>
           </div>
         </div>
 
@@ -1238,7 +1256,25 @@ h4 {
 
 .approved-content-modal,
 .full-content-modal {
-  max-width: 900px;
+  max-width: 1200px;
+  width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.large-modal {
+  max-width: 1200px;
+  width: 95vw;
+}
+
+.modal-body-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .modal-header {
@@ -1246,6 +1282,16 @@ h4 {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-6);
+  flex-shrink: 0;
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
 .approved-content-filters {
@@ -1254,24 +1300,52 @@ h4 {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  flex-shrink: 0;
 }
 
 .filter-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--spacing-3);
-  align-items: center;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.filter-group label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
 }
 
 .search-input,
 .filter-select,
-.filter-date {
+.filter-date,
+.filter-tag {
+  width: 100%;
   padding: var(--spacing-3) var(--spacing-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
+  min-width: 0;
+}
+
+.filter-select {
+  min-width: 120px;
 }
 
 .search-input:focus,
