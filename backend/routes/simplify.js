@@ -1214,6 +1214,7 @@ router.post('/research', authenticate, researchRateLimit, async (req, res) => {
       avoidKeywords,
       referenceIds,
       customPrompt,
+      templateId,
     } = req.body;
 
     // Validate required fields
