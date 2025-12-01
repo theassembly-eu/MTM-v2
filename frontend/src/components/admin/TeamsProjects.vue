@@ -1675,6 +1675,14 @@ h4 {
   border-top: 1px solid var(--color-border);
 }
 
+.search-section {
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
 .loading {
   text-align: center;
   padding: var(--spacing-10);

@@ -129,9 +129,9 @@
           </div>
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="btn-cancel">Annuleren</button>
-            <button type="submit" :disabled="saving" class="btn-primary">
-              <span v-if="saving">Opslaan...</span>
-              <span v-else>Opslaan</span>
+            <button type="submit" :disabled="saving" class="btn-primary" :class="{ 'btn-loading': saving }">
+              <span v-if="saving" class="btn-spinner"></span>
+              <span>{{ saving ? 'Opslaan...' : 'Opslaan' }}</span>
             </button>
           </div>
         </form>
