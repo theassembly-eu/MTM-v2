@@ -867,11 +867,16 @@ async function fetchTeams() {
 }
 
 async function fetchProjects() {
-  if (!selectedTeamId.value) return;
+  if (!selectedTeamId.value) {
+    console.log('Cannot fetch projects: no team selected');
+    return;
+  }
   loadingProjects.value = true;
   try {
     const teamIdStr = String(selectedTeamId.value);
+    console.log('Fetching projects for team:', teamIdStr);
     const response = await axios.get(`/api/projects?teamId=${teamIdStr}`);
+    console.log('Projects API response:', response.data);
     projects.value = response.data.map(project => {
       // Normalize LVLs - handle both populated objects and ObjectIds
       let normalizedLvls = [];
