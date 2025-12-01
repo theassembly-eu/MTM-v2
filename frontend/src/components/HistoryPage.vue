@@ -64,7 +64,12 @@
       </div>
 
       <ul class="results-list">
-        <li v-for="log in requestLogs" :key="log.id" class="result-item">
+        <li 
+          v-for="(log, index) in requestLogs" 
+          :key="log.id" 
+          class="result-item"
+          :style="{ animationDelay: `${index * 0.05}s` }"
+        >
           <div class="result-header">
             <div class="result-header-top">
               <div class="result-meta">
@@ -713,11 +718,24 @@ watch(selectedStatus, () => {
   margin-bottom: var(--spacing-4);
   padding: var(--spacing-6);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition-base);
+  transition: all var(--transition-base);
+  animation: fadeInUp 0.4s ease-out both;
 }
 
 .result-item:hover {
   box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .result-header {
