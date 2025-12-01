@@ -16,17 +16,17 @@
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <EmptyState
-      v-if="users.length === 0 && !loading"
+      v-if="filteredUsers.length === 0 && !loading"
       icon="👥"
-      title="Geen gebruikers gevonden"
-      description="Maak je eerste gebruiker aan om te beginnen met het beheren van gebruikers en rollen."
-      action-label="Nieuwe Gebruiker"
-      :action-handler="() => showCreateModal = true"
+      :title="searchQuery ? 'Geen gebruikers gevonden' : 'Geen gebruikers gevonden'"
+      :description="searchQuery ? 'Probeer een andere zoekterm.' : 'Maak je eerste gebruiker aan om te beginnen met het beheren van gebruikers en rollen.'"
+      :action-label="searchQuery ? '' : 'Nieuwe Gebruiker'"
+      :action-handler="searchQuery ? null : () => showCreateModal = true"
     />
 
     <div v-else class="users-list">
       <div 
-        v-for="user in users" 
+        v-for="user in filteredUsers" 
         :key="user.id" 
         class="user-card"
       >
@@ -131,9 +131,9 @@
           </div>
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="btn-cancel">Annuleren</button>
-            <button type="submit" :disabled="saving" class="btn-primary">
-              <span v-if="saving">Opslaan...</span>
-              <span v-else>Opslaan</span>
+            <button type="submit" :disabled="saving" class="btn-primary" :class="{ 'btn-loading': saving }">
+              <span v-if="saving" class="btn-spinner"></span>
+              <span>{{ saving ? 'Opslaan...' : 'Opslaan' }}</span>
             </button>
           </div>
         </form>
@@ -150,6 +150,7 @@ import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
+import SearchInput from '../common/SearchInput.vue';
 
 const { user: currentUser, hasRole } = useAuth();
 const { success, error: showError } = useToast();
@@ -163,6 +164,7 @@ const teams = ref([]);
 const lvls = ref([]);
 const showCreateModal = ref(false);
 const editingUser = ref(null);
+const searchQuery = ref('');
 
 const userForm = ref({
   email: '',
@@ -247,6 +249,25 @@ function getFieldError(field) {
 
 function hasFieldError(field) {
   return touched.value[field] && !!validationErrors.value[field];
+}
+
+const filteredUsers = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return users.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  return users.value.filter(user => {
+    const email = (user.email || '').toLowerCase();
+    const name = (user.name || '').toLowerCase();
+    const role = (user.role || '').toLowerCase();
+    return email.includes(query) || name.includes(query) || role.includes(query);
+  });
+});
+
+function handleSearch(query) {
+  // Search is handled by computed property
+  // This function is called after debounce
 }
 
 function getUserTeamNames(user) {
