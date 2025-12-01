@@ -45,6 +45,7 @@
         </div>
         <div class="user-details">
           <p><strong>Teams:</strong> {{ getUserTeamNames(user) }}</p>
+          <p v-if="user.role === 'ADMIN'"><strong>LVLs:</strong> {{ getUserLvlNames(user) }}</p>
         </div>
       </div>
     </div>
@@ -93,6 +94,15 @@
               </option>
             </select>
           </div>
+          <div v-if="isSuperAdmin && userForm.role === 'ADMIN'" class="form-group">
+            <label>LVLs *</label>
+            <select v-model="userForm.lvls" multiple class="multi-select" required>
+              <option v-for="lvl in lvls" :key="lvl.id" :value="lvl.id">
+                {{ lvl.name }} ({{ lvl.code }})
+              </option>
+            </select>
+            <p class="form-hint">Selecteer de administratieve niveaus waarvoor deze admin toegang heeft.</p>
+          </div>
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="btn-cancel">Annuleren</button>
             <button type="submit" :disabled="saving" class="btn-primary">
@@ -107,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 
@@ -118,6 +128,7 @@ const saving = ref(false);
 const error = ref(null);
 const users = ref([]);
 const teams = ref([]);
+const lvls = ref([]);
 const showCreateModal = ref(false);
 const editingUser = ref(null);
 
@@ -127,6 +138,7 @@ const userForm = ref({
   password: '',
   role: 'TEAM_MEMBER',
   teams: [],
+  lvls: [],
 });
 
 const currentUserId = computed(() => currentUser.value?.id);
@@ -139,18 +151,31 @@ const canChangeRole = computed(() => {
   return editingUser.value.role !== 'SUPER_ADMIN';
 });
 
+// Clear LVLs when role changes from ADMIN to something else
+watch(() => userForm.value.role, (newRole) => {
+  if (newRole !== 'ADMIN') {
+    userForm.value.lvls = [];
+  }
+});
+
 function getUserTeamNames(user) {
   if (!user.teams || user.teams.length === 0) return 'Geen teams';
   return user.teams.map(team => team.name || team).join(', ');
+}
+
+function getUserLvlNames(user) {
+  if (!user.lvls || user.lvls.length === 0) return 'Geen LVLs';
+  return user.lvls.map(lvl => lvl.name || lvl).join(', ');
 }
 
 async function fetchData() {
   loading.value = true;
   error.value = null;
   try {
-    const [usersRes, teamsRes] = await Promise.all([
+    const [usersRes, teamsRes, lvlsRes] = await Promise.all([
       axios.get('/api/users'),
       axios.get('/api/teams'),
+      axios.get('/api/lvls'),
     ]);
 
     users.value = usersRes.data.map(u => ({
@@ -159,11 +184,18 @@ async function fetchData() {
       name: u.name || '',
       role: u.role,
       teams: u.teams || [],
+      lvls: u.lvls || [],
     }));
 
     teams.value = teamsRes.data.map(t => ({
       id: t._id || t.id,
       name: t.name,
+    }));
+
+    lvls.value = lvlsRes.data.map(l => ({
+      id: l._id || l.id,
+      name: l.name,
+      code: l.code,
     }));
   } catch (err) {
     console.error('Error fetching data:', err);
@@ -181,6 +213,7 @@ function editUser(user) {
     password: '',
     role: user.role,
     teams: user.teams.map(t => t.id || t),
+    lvls: user.lvls ? user.lvls.map(l => l.id || l) : [],
   };
 }
 
@@ -193,6 +226,7 @@ function closeModal() {
     password: '',
     role: 'TEAM_MEMBER',
     teams: [],
+    lvls: [],
   };
 }
 
@@ -200,6 +234,15 @@ async function saveUser() {
   saving.value = true;
   error.value = null;
   try {
+    // Validate LVLs for ADMIN users
+    if (isSuperAdmin.value && userForm.value.role === 'ADMIN') {
+      if (!userForm.value.lvls || userForm.value.lvls.length === 0) {
+        error.value = 'Selecteer ten minste één LVL voor ADMIN gebruikers';
+        saving.value = false;
+        return;
+      }
+    }
+
     const data = { ...userForm.value };
     if (editingUser.value && !data.password) {
       delete data.password; // Don't send empty password
@@ -428,6 +471,13 @@ onMounted(() => {
 
 .multi-select {
   min-height: 120px;
+}
+
+.form-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: var(--spacing-1);
+  font-style: italic;
 }
 
 .modal-actions {

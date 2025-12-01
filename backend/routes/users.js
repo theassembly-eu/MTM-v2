@@ -191,7 +191,7 @@ router.put('/:id', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) 
       return res.status(403).json({ error: 'Only SUPER_ADMIN can update SUPER_ADMIN users' });
     }
 
-    // Only SUPER_ADMIN can assign LVLs to ADMIN users
+    // Handle LVLs assignment/removal
     if (lvls !== undefined) {
       if (req.user.role !== 'SUPER_ADMIN') {
         return res.status(403).json({ error: 'Only SUPER_ADMIN can assign LVLs to users' });
@@ -200,6 +200,9 @@ router.put('/:id', authenticate, requireRoleOrHigher('ADMIN'), async (req, res) 
         return res.status(400).json({ error: 'LVLs can only be assigned to ADMIN users' });
       }
       user.lvls = lvls;
+    } else if (role !== undefined && user.role === 'ADMIN' && role !== 'ADMIN') {
+      // Clear LVLs when role changes from ADMIN to something else
+      user.lvls = [];
     }
 
     if (name !== undefined) user.name = name;
