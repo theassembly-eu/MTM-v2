@@ -20,8 +20,8 @@
     <div v-if="loading" class="loading">Laden...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <!-- Target Audiences -->
-    <div v-if="activeTab === 'audiences'" class="config-section">
+    <!-- Target Audiences (SUPER_ADMIN only) -->
+    <div v-if="activeTab === 'audiences' && userRole === 'SUPER_ADMIN'" class="config-section">
       <div class="section-header">
         <h2>Doelgroepen</h2>
         <button @click="showCreateModal('audience')" class="btn-primary">
@@ -36,8 +36,8 @@
       />
     </div>
 
-    <!-- Output Formats -->
-    <div v-if="activeTab === 'formats'" class="config-section">
+    <!-- Output Formats (SUPER_ADMIN only) -->
+    <div v-if="activeTab === 'formats' && userRole === 'SUPER_ADMIN'" class="config-section">
       <div class="section-header">
         <h2>Output Formaten</h2>
         <button @click="showCreateModal('format')" class="btn-primary">
@@ -52,8 +52,8 @@
       />
     </div>
 
-    <!-- Languages -->
-    <div v-if="activeTab === 'languages'" class="config-section">
+    <!-- Languages (SUPER_ADMIN only) -->
+    <div v-if="activeTab === 'languages' && userRole === 'SUPER_ADMIN'" class="config-section">
       <div class="section-header">
         <h2>Talen</h2>
         <button @click="showCreateModal('language')" class="btn-primary">
@@ -68,8 +68,8 @@
       />
     </div>
 
-    <!-- LVLs -->
-    <div v-if="activeTab === 'lvls'" class="config-section">
+    <!-- LVLs (SUPER_ADMIN only) -->
+    <div v-if="activeTab === 'lvls' && userRole === 'SUPER_ADMIN'" class="config-section">
       <div class="section-header">
         <h2>Communicatieniveaus (LVLs)</h2>
         <button @click="showCreateModal('lvl')" class="btn-primary">
@@ -159,24 +159,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { useAuth } from '../../composables/useAuth.js';
 import ConfigList from './ConfigList.vue';
 import PromptTemplatesTab from './PromptTemplatesTab.vue';
 import SystemPromptTemplatesTab from './SystemPromptTemplatesTab.vue';
 
+const { userRole } = useAuth();
+
 const loading = ref(false);
 const saving = ref(false);
 const error = ref(null);
+
 // Check for hash in URL to set initial tab
 const getInitialTab = () => {
   if (typeof window !== 'undefined' && window.location.hash) {
     const hash = window.location.hash.replace('#', '');
-    if (['audiences', 'formats', 'languages', 'lvls', 'templates', 'system-templates'].includes(hash)) {
+    const availableTabs = userRole.value === 'SUPER_ADMIN' 
+      ? ['audiences', 'formats', 'languages', 'lvls', 'templates', 'system-templates']
+      : ['templates', 'system-templates'];
+    if (availableTabs.includes(hash)) {
       return hash;
     }
   }
-  return 'audiences';
+  // Default tab based on role
+  return userRole.value === 'SUPER_ADMIN' ? 'audiences' : 'templates';
 };
 
 const activeTab = ref(getInitialTab());
@@ -200,14 +208,25 @@ const itemForm = ref({
 
 const placesText = ref('');
 
-const tabs = [
-  { id: 'lvls', label: 'LVLs' },
-  { id: 'audiences', label: 'Doelgroepen' },
-  { id: 'formats', label: 'Output Formaten' },
-  { id: 'languages', label: 'Talen' },
-  { id: 'templates', label: 'Prompt Templates' },
-  { id: 'system-templates', label: 'Systeem Templates' },
-];
+// Filter tabs based on user role
+const tabs = computed(() => {
+  const allTabs = [
+    { id: 'lvls', label: 'LVLs' },
+    { id: 'audiences', label: 'Doelgroepen' },
+    { id: 'formats', label: 'Output Formaten' },
+    { id: 'languages', label: 'Talen' },
+    { id: 'templates', label: 'Prompt Templates' },
+    { id: 'system-templates', label: 'Systeem Templates' },
+  ];
+  
+  // SUPER_ADMIN sees all tabs
+  if (userRole.value === 'SUPER_ADMIN') {
+    return allTabs;
+  }
+  
+  // ADMIN and TEAM_LEADER only see template tabs
+  return allTabs.filter(tab => tab.id === 'templates' || tab.id === 'system-templates');
+});
 
 function getItemTypeLabel() {
   switch (activeTab.value) {
