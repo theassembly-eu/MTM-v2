@@ -194,3 +194,37 @@ export function adminHasAccessToTeam(adminUser, team) {
   return teamLvlIds.some(lvlId => adminLvlIds.includes(lvlId));
 }
 
+/**
+ * Helper function to check if user LVLs have access to project LVLs
+ * @param {Array} userLvls - Array of LVL IDs (strings or ObjectIds)
+ * @param {Array} projectLvls - Array of LVL IDs (strings or ObjectIds)
+ * @returns {boolean} True if there's a matching LVL
+ */
+export async function checkLvlAccessForProject(userLvls, projectLvls) {
+  if (!userLvls || userLvls.length === 0 || !projectLvls || projectLvls.length === 0) {
+    return false;
+  }
+  
+  const userLvlIds = userLvls.map(id => id.toString());
+  const projectLvlIds = projectLvls.map(id => id.toString());
+  
+  return projectLvlIds.some(projLvlId => userLvlIds.includes(projLvlId));
+}
+
+/**
+ * Helper function to check if user LVLs have access to a team based on LVLs
+ * @param {Array} userLvls - Array of LVL IDs (strings or ObjectIds)
+ * @param {Array} teamLvls - Array of LVL IDs (strings or ObjectIds)
+ * @returns {boolean} True if there's a matching LVL
+ */
+export async function checkLvlAccessForTeam(userLvls, teamLvls) {
+  if (!userLvls || userLvls.length === 0 || !teamLvls || teamLvls.length === 0) {
+    return false;
+  }
+  
+  const userLvlIds = userLvls.map(id => id.toString());
+  const teamLvlIds = teamLvls.map(id => id.toString());
+  
+  return teamLvlIds.some(teamLvlId => userLvlIds.includes(teamLvlId));
+}
+
