@@ -238,6 +238,9 @@ import { useAuth } from '../../composables/useAuth.js';
 const { hasRole } = useAuth();
 
 const templates = ref([]);
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
+
 const loading = ref(false);
 const error = ref(null);
 const showModal = ref(false);
@@ -285,22 +288,39 @@ async function fetchTemplates() {
 }
 
 async function runMigration() {
-  if (!confirm('Weet je zeker dat je de migratie wilt uitvoeren? Dit zal bestaande templates updaten.')) {
-    return;
-  }
-  
-  migrating.value = true;
-  error.value = null;
   try {
-    const response = await axios.post('/api/migrations/prompt-sections-to-templates');
-    alert(`Migratie voltooid!\nAangemaakt: ${response.data.summary.created}\nBijgewerkt: ${response.data.summary.updated}\nOvergeslagen: ${response.data.summary.skipped}`);
-    await fetchTemplates();
+    const confirmed = await confirm({
+      title: 'Migratie uitvoeren',
+      message: 'Weet je zeker dat je de migratie wilt uitvoeren?',
+      description: 'Dit zal bestaande templates updaten.',
+      type: 'warning',
+      confirmText: 'Uitvoeren',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
+    migrating.value = true;
+    error.value = null;
+    try {
+      const response = await axios.post('/api/migrations/prompt-sections-to-templates');
+      const summary = response.data.summary;
+      success(
+        'Migratie voltooid!',
+        `Aangemaakt: ${summary.created}, Bijgewerkt: ${summary.updated}, Overgeslagen: ${summary.skipped}`,
+        8000
+      );
+      await fetchTemplates();
+    } catch (err) {
+      console.error('Migration error:', err);
+      const errorMsg = err.response?.data?.error || 'Migratie mislukt';
+      error.value = errorMsg;
+      showError(errorMsg);
+    } finally {
+      migrating.value = false;
+    }
   } catch (err) {
-    console.error('Migration error:', err);
-    error.value = err.response?.data?.error || 'Migratie mislukt';
-    alert('Migratie mislukt: ' + error.value);
-  } finally {
-    migrating.value = false;
+    if (err === false) return; // User cancelled
   }
 }
 
@@ -374,21 +394,33 @@ function closeVersionModal() {
 }
 
 async function rollbackToVersion(version) {
-  if (!confirm(`Weet je zeker dat je terug wilt zetten naar versie ${version}? De huidige versie wordt opgeslagen in de geschiedenis.`)) {
-    return;
-  }
-  
   try {
-    await axios.post(`/api/system-prompt-templates/${selectedTemplateForVersion.value._id || selectedTemplateForVersion.value.id}/rollback`, {
-      version,
+    const confirmed = await confirm({
+      title: 'Versie terugzetten',
+      message: `Weet je zeker dat je terug wilt zetten naar versie ${version}?`,
+      description: 'De huidige versie wordt opgeslagen in de geschiedenis.',
+      type: 'warning',
+      confirmText: 'Terugzetten',
+      cancelText: 'Annuleren',
     });
-    alert('Versie succesvol teruggezet!');
-    await fetchTemplates();
-    await viewVersionHistory(selectedTemplateForVersion.value); // Refresh version history
+    
+    if (!confirmed) return;
+    
+    try {
+      await axios.post(`/api/system-prompt-templates/${selectedTemplateForVersion.value._id || selectedTemplateForVersion.value.id}/rollback`, {
+        version,
+      });
+      success('Versie succesvol teruggezet!');
+      await fetchTemplates();
+      await viewVersionHistory(selectedTemplateForVersion.value); // Refresh version history
+    } catch (err) {
+      console.error('Error rolling back version:', err);
+      const errorMsg = err.response?.data?.error || 'Fout bij terugzetten van versie';
+      error.value = errorMsg;
+      showError(errorMsg);
+    }
   } catch (err) {
-    console.error('Error rolling back version:', err);
-    error.value = err.response?.data?.error || 'Fout bij terugzetten van versie';
-    alert('Fout bij terugzetten: ' + error.value);
+    if (err === false) return; // User cancelled
   }
 }
 
@@ -422,25 +454,41 @@ async function saveTemplate() {
     }
     await fetchTemplates();
     closeModal();
+    if (editingTemplate.value) {
+      success('Template succesvol bijgewerkt');
+    } else {
+      success('Template succesvol aangemaakt');
+    }
   } catch (err) {
     console.error('Error saving template:', err);
-    error.value = err.response?.data?.error || 'Fout bij het opslaan van template';
-    alert('Fout bij opslaan: ' + error.value);
+    const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van template';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 
 async function deleteTemplate(template) {
-  if (!confirm(`Weet je zeker dat je "${template.name}" wilt verwijderen?`)) {
-    return;
-  }
-  
   try {
+    const confirmed = await confirm({
+      title: 'Template verwijderen',
+      message: `Weet je zeker dat je "${template.name}" wilt verwijderen?`,
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/system-prompt-templates/${template._id || template.id}`);
+    success('Template succesvol verwijderd');
     await fetchTemplates();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting template:', err);
-    error.value = err.response?.data?.error || 'Fout bij het verwijderen van template';
-    alert('Fout bij verwijderen: ' + error.value);
+    const errorMsg = err.response?.data?.error || 'Fout bij het verwijderen van template';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 

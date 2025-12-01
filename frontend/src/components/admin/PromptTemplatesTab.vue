@@ -252,8 +252,12 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
 
 const { user, userTeams } = useAuth();
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
 const userRole = computed(() => user.value?.role || '');
 const userTeamsList = computed(() => userTeams.value || []);
 
@@ -456,15 +460,19 @@ async function saveTemplate() {
     
     if (editingTemplate.value) {
       await axios.put(`/api/prompt-templates/${editingTemplate.value.id}`, data);
+      success('Template succesvol bijgewerkt');
     } else {
       await axios.post('/api/prompt-templates', data);
+      success('Template succesvol aangemaakt');
     }
     
     closeModal();
     await fetchTemplates();
   } catch (err) {
     console.error('Error saving template:', err);
-    error.value = err.response?.data?.error || 'Fout bij opslaan template';
+    const errorMsg = err.response?.data?.error || 'Fout bij opslaan template';
+    error.value = errorMsg;
+    showError(errorMsg);
   } finally {
     saving.value = false;
   }
@@ -609,16 +617,27 @@ async function previewTemplate() {
 }
 
 async function deleteTemplate(template) {
-  if (!confirm(`Weet je zeker dat je "${template.name}" wilt verwijderen?`)) {
-    return;
-  }
-  
   try {
+    const confirmed = await confirm({
+      title: 'Template verwijderen',
+      message: `Weet je zeker dat je "${template.name}" wilt verwijderen?`,
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/prompt-templates/${template.id}`);
+    success('Template succesvol verwijderd');
     await fetchTemplates();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting template:', err);
-    error.value = err.response?.data?.error || 'Fout bij verwijderen template';
+    const errorMsg = err.response?.data?.error || 'Fout bij verwijderen template';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 

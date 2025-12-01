@@ -329,8 +329,10 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../composables/useAuth.js';
+import { useToast } from '../composables/useToast.js';
 
 const { user, hasRole } = useAuth();
+const { success, error: showError } = useToast();
 
 const requestLogs = ref([]);
 const loading = ref(true);
@@ -501,9 +503,10 @@ async function tagAsCandidate(logId) {
   try {
     await axios.put(`/api/request-logs/${logId}/tag-candidate`);
     await fetchRequestLogs();
+    success('Tekst gemarkeerd als kandidaat');
   } catch (err) {
     console.error('Error tagging as candidate:', err);
-    alert(err.response?.data?.error || 'Fout bij markeren als kandidaat');
+    showError(err.response?.data?.error || 'Fout bij markeren als kandidaat');
   } finally {
     actionLoading.value = null;
   }
@@ -525,9 +528,10 @@ async function verifyText() {
     showVerify.value = false;
     verifyNotes.value = '';
     await fetchRequestLogs();
+    success('Tekst succesvol geverifieerd');
   } catch (err) {
     console.error('Error verifying:', err);
-    alert(err.response?.data?.error || 'Fout bij verifiëren');
+    showError(err.response?.data?.error || 'Fout bij verifiëren');
   } finally {
     actionLoading.value = null;
   }
@@ -549,10 +553,10 @@ async function approveText() {
     showApprove.value = false;
     approveNotes.value = '';
     await fetchRequestLogs();
-    alert('Tekst succesvol goedgekeurd en opgeslagen in projectbibliotheek!');
+    success('Tekst succesvol goedgekeurd en opgeslagen in projectbibliotheek!');
   } catch (err) {
     console.error('Error approving:', err);
-    alert(err.response?.data?.error || 'Fout bij goedkeuren');
+    showError(err.response?.data?.error || 'Fout bij goedkeuren');
   } finally {
     actionLoading.value = null;
   }
@@ -574,9 +578,10 @@ async function rejectText() {
     showReject.value = false;
     rejectReason.value = '';
     await fetchRequestLogs();
+    success('Tekst succesvol afgewezen');
   } catch (err) {
     console.error('Error rejecting:', err);
-    alert(err.response?.data?.error || 'Fout bij afwijzen');
+    showError(err.response?.data?.error || 'Fout bij afwijzen');
   } finally {
     actionLoading.value = null;
   }
@@ -598,9 +603,10 @@ async function addComment() {
     showComment.value = false;
     commentText.value = '';
     await fetchRequestLogs();
+    success('Opmerking toegevoegd');
   } catch (err) {
     console.error('Error adding comment:', err);
-    alert(err.response?.data?.error || 'Fout bij toevoegen opmerking');
+    showError(err.response?.data?.error || 'Fout bij toevoegen opmerking');
   } finally {
     actionLoading.value = null;
   }

@@ -431,6 +431,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
 
 const tests = ref([]);
 const templates = ref([]);
@@ -592,52 +594,65 @@ function closeModal() {
 
 async function saveTest() {
   if (totalWeight.value !== 100) {
-    alert('Total weight moet 100% zijn');
+    warning('Total weight moet 100% zijn');
     return;
   }
 
   try {
     if (editingTest.value) {
       await axios.put(`/api/ab-tests/${editingTest.value._id}`, formData.value);
+      success('A/B test succesvol bijgewerkt');
     } else {
       await axios.post('/api/ab-tests', formData.value);
+      success('A/B test succesvol aangemaakt');
     }
     closeModal();
     fetchTests();
   } catch (err) {
-    alert(err.response?.data?.error || 'Fout bij opslaan van test');
     console.error('Error saving test:', err);
+    showError(err.response?.data?.error || 'Fout bij opslaan van test');
   }
 }
 
 async function startTest(test) {
   try {
     await axios.post(`/api/ab-tests/${test._id}/start`);
+    success('A/B test succesvol gestart');
     fetchTests();
   } catch (err) {
-    alert(err.response?.data?.error || 'Fout bij starten van test');
+    showError(err.response?.data?.error || 'Fout bij starten van test');
   }
 }
 
 async function pauseTest(test) {
   try {
     await axios.post(`/api/ab-tests/${test._id}/pause`);
+    success('A/B test succesvol gepauzeerd');
     fetchTests();
   } catch (err) {
-    alert(err.response?.data?.error || 'Fout bij pauzeren van test');
+    showError(err.response?.data?.error || 'Fout bij pauzeren van test');
   }
 }
 
 async function completeTest(test) {
-  if (!confirm('Weet je zeker dat je deze test wilt voltooien? Dit zal de winnaar berekenen.')) {
-    return;
-  }
-  
   try {
+    const confirmed = await confirm({
+      title: 'A/B test voltooien',
+      message: 'Weet je zeker dat je deze test wilt voltooien?',
+      description: 'Dit zal de winnaar berekenen en de test afsluiten.',
+      type: 'warning',
+      confirmText: 'Voltooien',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.post(`/api/ab-tests/${test._id}/complete`);
+    success('A/B test succesvol voltooid');
     fetchTests();
   } catch (err) {
-    alert(err.response?.data?.error || 'Fout bij voltooien van test');
+    if (err === false) return; // User cancelled
+    showError(err.response?.data?.error || 'Fout bij voltooien van test');
   }
 }
 

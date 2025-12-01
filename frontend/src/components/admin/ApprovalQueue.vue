@@ -355,8 +355,10 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
+import { useToast } from '../../composables/useToast.js';
 
 const { hasRole } = useAuth();
+const { success, error: showError } = useToast();
 
 const loading = ref(false);
 const error = ref(null);
@@ -452,9 +454,10 @@ async function tagAsCandidate(item) {
       const updated = queueItems.value.find(i => i.id === item.id);
       if (updated) selectedItem.value = updated;
     }
+    success('Tekst gemarkeerd als kandidaat');
   } catch (err) {
     console.error('Error tagging as candidate:', err);
-    alert(err.response?.data?.error || 'Fout bij markeren als kandidaat');
+    showError(err.response?.data?.error || 'Fout bij markeren als kandidaat');
   }
 }
 
@@ -479,9 +482,10 @@ async function verifyText() {
       const updated = queueItems.value.find(i => i.id === currentItemId.value);
       if (updated) selectedItem.value = updated;
     }
+    success('Tekst succesvol geverifieerd');
   } catch (err) {
     console.error('Error verifying:', err);
-    alert(err.response?.data?.error || 'Fout bij verifiëren');
+    showError(err.response?.data?.error || 'Fout bij verifiëren');
   } finally {
     actionLoading.value = false;
   }
@@ -508,10 +512,10 @@ async function approveText() {
       const updated = queueItems.value.find(i => i.id === currentItemId.value);
       if (updated) selectedItem.value = updated;
     }
-    alert('Tekst succesvol goedgekeurd!');
+    success('Tekst succesvol goedgekeurd en opgeslagen in projectbibliotheek!');
   } catch (err) {
     console.error('Error approving:', err);
-    alert(err.response?.data?.error || 'Fout bij goedkeuren');
+    showError(err.response?.data?.error || 'Fout bij goedkeuren');
   } finally {
     actionLoading.value = false;
   }
@@ -538,9 +542,10 @@ async function rejectText() {
       const updated = queueItems.value.find(i => i.id === currentItemId.value);
       if (updated) selectedItem.value = updated;
     }
+    success('Tekst succesvol afgewezen');
   } catch (err) {
     console.error('Error rejecting:', err);
-    alert(err.response?.data?.error || 'Fout bij afwijzen');
+    showError(err.response?.data?.error || 'Fout bij afwijzen');
   } finally {
     actionLoading.value = false;
   }
@@ -556,9 +561,10 @@ async function addComment() {
     await fetchQueue();
     const updated = queueItems.value.find(i => i.id === selectedItem.value.id);
     if (updated) selectedItem.value = updated;
+    success('Opmerking toegevoegd');
   } catch (err) {
     console.error('Error adding comment:', err);
-    alert(err.response?.data?.error || 'Fout bij toevoegen opmerking');
+    showError(err.response?.data?.error || 'Fout bij toevoegen opmerking');
   }
 }
 

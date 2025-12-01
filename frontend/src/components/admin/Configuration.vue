@@ -162,11 +162,15 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
 import ConfigList from './ConfigList.vue';
 import PromptTemplatesTab from './PromptTemplatesTab.vue';
 import SystemPromptTemplatesTab from './SystemPromptTemplatesTab.vue';
 
 const { userRole } = useAuth();
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -378,22 +382,36 @@ async function saveItem() {
 
     if (editingItem.value) {
       await axios.put(`${endpoint}/${editingItem.value.id}`, data);
+      success(`${getItemTypeLabel()} succesvol bijgewerkt`);
     } else {
       await axios.post(endpoint, data);
+      success(`${getItemTypeLabel()} succesvol aangemaakt`);
     }
     await fetchData();
     closeModal();
   } catch (err) {
     console.error('Error saving item:', err);
-    error.value = err.response?.data?.error || 'Fout bij het opslaan';
+    const errorMsg = err.response?.data?.error || 'Fout bij het opslaan';
+    error.value = errorMsg;
+    showError(errorMsg);
   } finally {
     saving.value = false;
   }
 }
 
 async function deleteItem(item, type) {
-  if (!confirm(`Weet je zeker dat je "${item.name}" wilt verwijderen?`)) return;
   try {
+    const confirmed = await confirm({
+      title: `${getItemTypeLabel()} verwijderen`,
+      message: `Weet je zeker dat je "${item.name}" wilt verwijderen?`,
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     let endpoint = '';
     switch (type) {
       case 'lvl': endpoint = '/api/lvls'; break;
@@ -402,10 +420,14 @@ async function deleteItem(item, type) {
       case 'language': endpoint = '/api/languages'; break;
     }
     await axios.delete(`${endpoint}/${item.id}`);
+    success(`${getItemTypeLabel()} succesvol verwijderd`);
     await fetchData();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting item:', err);
-    error.value = err.response?.data?.error || 'Fout bij het verwijderen';
+    const errorMsg = err.response?.data?.error || 'Fout bij het verwijderen';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 

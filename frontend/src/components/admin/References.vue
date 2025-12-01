@@ -129,6 +129,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
+
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -251,27 +256,45 @@ async function saveReference() {
 
     if (editingReference.value) {
       await axios.put(`/api/references/${editingReference.value.id}`, data);
+      success('Referentie succesvol bijgewerkt');
     } else {
       await axios.post(`/api/projects/${selectedProjectId.value}/references`, data);
+      success('Referentie succesvol aangemaakt');
     }
     await fetchReferences();
     closeModal();
   } catch (err) {
     console.error('Error saving reference:', err);
-    error.value = err.response?.data?.error || 'Fout bij het opslaan van referentie';
+    const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van referentie';
+    error.value = errorMsg;
+    showError(errorMsg);
   } finally {
     saving.value = false;
   }
 }
 
 async function deleteReference(refId) {
-  if (!confirm('Weet je zeker dat je deze referentie wilt verwijderen?')) return;
   try {
+    const confirmed = await confirm({
+      title: 'Referentie verwijderen',
+      message: 'Weet je zeker dat je deze referentie wilt verwijderen?',
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/references/${refId}`);
+    success('Referentie succesvol verwijderd');
     await fetchReferences();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting reference:', err);
-    error.value = err.response?.data?.error || 'Fout bij het verwijderen van referentie';
+    const errorMsg = err.response?.data?.error || 'Fout bij het verwijderen van referentie';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 
