@@ -1,6 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { useToast } from '../composables/useToast.js';
+import { useConfirm } from '../composables/useConfirm.js';
+
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
 
 const inputText = ref('');
 const simplifiedText = ref('');
@@ -39,23 +44,24 @@ async function fetchDictionaryEntries() {
     dictionaryEntries.value = response.data;
   } catch (error) {
     console.error('Fout bij ophalen woordenboek items:', error);
-    alert(`Netwerkfout bij ophalen woordenboek items: ${error.message}`);
+    showError(`Netwerkfout bij ophalen woordenboek items: ${error.message}`);
   }
 }
 
 async function addDictionaryEntry() {
   if (!newOriginalTerm.value || !newSimplifiedTerm.value) {
-    alert('Beide termen zijn verplicht!');
+    showError('Beide termen zijn verplicht!');
     return;
   }
   try {
     await axios.post('/api/dictionary', { originalTerm: newOriginalTerm.value, simplifiedTerm: newSimplifiedTerm.value });
     newOriginalTerm.value = '';
     newSimplifiedTerm.value = '';
+    success('Woordenboek item toegevoegd');
     fetchDictionaryEntries();
   } catch (error) {
     console.error('Fout bij toevoegen woordenboek item:', error);
-    alert(`Fout bij toevoegen: ${error.response.data.message}`);
+    showError(`Fout bij toevoegen: ${error.response?.data?.message || error.message}`);
   }
 }
 
@@ -67,7 +73,7 @@ function editDictionaryEntry(entry) {
 
 async function updateDictionaryEntry() {
   if (!editingEntryId.value || !newOriginalTerm.value || !newSimplifiedTerm.value) {
-    alert('Beide termen zijn verplicht voor bewerken!');
+    showError('Beide termen zijn verplicht voor bewerken!');
     return;
   }
   try {
@@ -75,21 +81,33 @@ async function updateDictionaryEntry() {
     editingEntryId.value = null;
     newOriginalTerm.value = '';
     newSimplifiedTerm.value = '';
+    success('Woordenboek item bijgewerkt');
     fetchDictionaryEntries();
   } catch (error) {
     console.error('Fout bij bijwerken woordenboek item:', error);
-    alert(`Fout bij bijwerken: ${error.response.data.message}`);
+    showError(`Fout bij bijwerken: ${error.response?.data?.message || error.message}`);
   }
 }
 
 async function deleteDictionaryEntry(id) {
-  if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
   try {
+    const confirmed = await confirm({
+      title: 'Woordenboek item verwijderen',
+      message: 'Weet je zeker dat je dit item wilt verwijderen?',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/dictionary/${id}`);
+    success('Woordenboek item verwijderd');
     fetchDictionaryEntries();
   } catch (error) {
+    if (error === false) return; // User cancelled
     console.error('Fout bij verwijderen woordenboek item:', error);
-    alert(`Fout bij verwijderen: ${error.response.data.message}`);
+    showError(`Fout bij verwijderen: ${error.response?.data?.message || error.message}`);
   }
 }
 
@@ -113,7 +131,7 @@ async function simplifyText() {
 
 async function saveResult() {
   if (!simplifiedText.value || !inputText.value) {
-    alert('Er is geen resultaat om op te slaan.');
+    showError('Er is geen resultaat om op te slaan.');
     return;
   }
   try {
@@ -123,13 +141,13 @@ async function saveResult() {
       targetAudience: selectedTargetAudience.value,
       outputFormat: selectedOutputFormat.value,
     });
-    alert('Resultaat opgeslagen!');
+    success('Resultaat opgeslagen!');
   } catch (error) {
     console.error('Fout bij opslaan resultaat:', error);
     if (error.response) {
-      alert(`Fout bij opslaan: ${error.response.data.message}`);
+      showError(`Fout bij opslaan: ${error.response.data.message}`);
     } else {
-      alert('Fout bij opslaan: Netwerkfout. Kon de server niet bereiken.');
+      showError('Fout bij opslaan: Netwerkfout. Kon de server niet bereiken.');
     }
   }
 }
