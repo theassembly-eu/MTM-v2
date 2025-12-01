@@ -160,6 +160,7 @@ import { useConfirm } from '../../composables/useConfirm.js';
 import EmptyState from '../common/EmptyState.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
 import SearchInput from '../common/SearchInput.vue';
+import { useKeyboardShortcuts } from '../../composables/useKeyboardShortcuts.js';
 
 const { user: currentUser, hasRole } = useAuth();
 const { success, error: showError } = useToast();
@@ -420,6 +421,36 @@ async function deleteUser(userId) {
   }
 }
 
+// Keyboard shortcuts
+useKeyboardShortcuts({
+  'ctrl+s': (e) => {
+    if (showCreateModal.value || editingUser.value) {
+      e.preventDefault();
+      saveUser();
+    }
+  },
+  'escape': () => {
+    if (showCreateModal.value || editingUser.value) {
+      closeModal();
+    }
+  },
+});
+
+// Keyboard shortcuts
+useKeyboardShortcuts({
+  'ctrl+s': (e) => {
+    if (showCreateModal.value || editingUser.value) {
+      e.preventDefault();
+      saveUser();
+    }
+  },
+  'escape': () => {
+    if (showCreateModal.value || editingUser.value) {
+      closeModal();
+    }
+  },
+});
+
 onMounted(() => {
   fetchData();
 });
@@ -478,7 +509,19 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: var(--spacing-6);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition-base);
+  transition: all var(--transition-base);
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-card:hover {

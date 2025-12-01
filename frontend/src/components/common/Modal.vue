@@ -249,25 +249,38 @@ onUnmounted(() => {
   justify-content: flex-end;
 }
 
-/* Transitions */
-.modal-enter-active,
+/* Enhanced Transitions */
+.modal-enter-active {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 1, 1);
 }
 
-.modal-enter-active .modal,
+.modal-enter-active .modal {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .modal-leave-active .modal {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s cubic-bezier(0.4, 0, 1, 1);
 }
 
-.modal-enter-from,
+.modal-enter-from {
+  opacity: 0;
+}
+
 .modal-leave-to {
   opacity: 0;
 }
 
-.modal-enter-from .modal,
+.modal-enter-from .modal {
+  transform: scale(0.95) translateY(-10px);
+  opacity: 0;
+}
+
 .modal-leave-to .modal {
-  transform: scale(0.95);
+  transform: scale(0.98) translateY(5px);
   opacity: 0;
 }
 
