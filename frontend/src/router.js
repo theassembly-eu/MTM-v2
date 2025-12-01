@@ -10,6 +10,7 @@ import Configuration from './components/admin/Configuration.vue';
 import Analytics from './components/admin/Analytics.vue';
 import ABTests from './components/admin/ABTests.vue';
 import ApprovalQueue from './components/admin/ApprovalQueue.vue';
+import PromptTemplates from './components/admin/PromptTemplates.vue';
 
 const routes = [
   {
@@ -80,6 +81,12 @@ const routes = [
     path: '/admin/approval-queue',
     name: 'ApprovalQueue',
     component: ApprovalQueue,
+    meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER'] },
+  },
+  {
+    path: '/admin/prompt-templates',
+    name: 'AdminPromptTemplates',
+    component: PromptTemplates,
     meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER'] },
   },
 ];
