@@ -177,8 +177,11 @@ app.post('/api/auth/login', async (req, res) => {
 // Protected test route
 app.get('/api/auth/me', authenticate, async (req, res) => {
   try {
-    // Fetch user with populated LVLs to get full LVL data
-    const user = await User.findById(req.user.id).populate('lvls', 'name code').select('-passwordHash');
+    // Fetch user with populated teams and LVLs to get full data
+    const user = await User.findById(req.user.id)
+      .populate('teams', 'name')
+      .populate('lvls', 'name code')
+      .select('-passwordHash');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
