@@ -107,6 +107,42 @@ const requestLogSchema = new mongoose.Schema({
     variant: String, // 'A' or 'B'
     version: String, // Template version used
   },
+  // Approval workflow fields
+  approvalStatus: {
+    type: String,
+    enum: ['DRAFT', 'CANDIDATE', 'VERIFIED', 'APPROVED', 'REJECTED'],
+    default: 'DRAFT',
+    index: true,
+  },
+  approvalMeta: {
+    taggedAsCandidate: {
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: Date,
+    },
+    verified: {
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: Date,
+      notes: String,
+    },
+    approved: {
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: Date,
+      notes: String,
+    },
+    rejected: {
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: Date,
+      reason: { type: String },
+    },
+  },
+  comments: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    text: { type: String, required: true },
+    parentComment: { type: mongoose.Schema.Types.ObjectId }, // For threading
+    edited: { type: Boolean, default: false },
+    editedAt: Date,
+    createdAt: { type: Date, default: Date.now },
+  }],
 }, {
   timestamps: true,
 });
@@ -116,6 +152,9 @@ requestLogSchema.index({ user: 1, createdAt: -1 });
 requestLogSchema.index({ project: 1, createdAt: -1 });
 requestLogSchema.index({ team: 1, createdAt: -1 });
 requestLogSchema.index({ createdAt: -1 });
+requestLogSchema.index({ approvalStatus: 1, createdAt: -1 }); // For approval queue
+requestLogSchema.index({ 'approvalMeta.verified.by': 1 }); // For verification tracking
+requestLogSchema.index({ 'approvalMeta.approved.by': 1 }); // For approval tracking
 
 const RequestLog = mongoose.model('RequestLog', requestLogSchema);
 
