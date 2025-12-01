@@ -73,10 +73,12 @@
                 :key="project.id"
                 class="project-item"
               >
-                <span>{{ project.name }}</span>
-                <span class="project-lvls">({{ getProjectLvlNames(project) }})</span>
+                <div class="project-info">
+                  <span class="project-name">{{ project.name }}</span>
+                  <span class="project-lvls">({{ getProjectLvlNames(project) }})</span>
+                </div>
                 <div class="project-actions">
-                  <button @click="viewApprovedContent(project)" class="btn-view-small">📚 Goedgekeurd</button>
+                  <button @click="viewApprovedContent(project)" class="btn-view-small" title="Goedgekeurde teksten">📚</button>
                   <button @click="editProject(project)" class="btn-edit-small">Bewerken</button>
                   <button @click="deleteProject(project.id)" class="btn-delete-small">Verwijderen</button>
                 </div>
@@ -674,7 +676,7 @@ h4 {
 
 .teams-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
   gap: var(--spacing-6);
 }
 
@@ -685,6 +687,9 @@ h4 {
   padding: var(--spacing-6);
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition-base);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .team-card:hover {
@@ -725,6 +730,17 @@ h4 {
   margin-top: var(--spacing-4);
   padding-top: var(--spacing-4);
   border-top: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.projects-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  overflow: visible;
 }
 
 .projects-header {
@@ -754,29 +770,44 @@ h4 {
   transition: background-color var(--transition-base);
   gap: var(--spacing-3);
   min-width: 0;
+  overflow: hidden;
 }
 
 .project-item:hover {
   background: var(--color-bg-tertiary);
 }
 
-.project-item > div:first-child {
+.project-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   overflow: hidden;
+}
+
+.project-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .project-lvls {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
-  margin-left: var(--spacing-2);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .project-actions {
   display: flex;
   gap: var(--spacing-2);
   flex-shrink: 0;
-  flex-wrap: wrap;
+  align-items: center;
 }
 
 .empty-state, .empty-state-small {
@@ -838,10 +869,18 @@ h4 {
   padding: var(--spacing-2) var(--spacing-3);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .btn-view-small:hover {
   background: #2563EB;
+}
+
+.btn-edit-small,
+.btn-delete-small {
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .btn-view-full {
@@ -1244,10 +1283,40 @@ h4 {
   
   .teams-list {
     grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .team-card {
+    min-width: 0;
+    overflow: visible;
+  }
+  
+  .project-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .project-info {
+    width: 100%;
+    margin-bottom: var(--spacing-2);
+  }
+
+  .project-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .btn-view-small,
+  .btn-edit-small,
+  .btn-delete-small {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-1) var(--spacing-2);
   }
   
   .modal {
     padding: var(--spacing-6);
+    max-width: 95vw;
   }
 }
 </style>
