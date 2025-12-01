@@ -175,10 +175,35 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Protected test route
-app.get('/api/auth/me', authenticate, (req, res) => {
-  res.json({
-    user: req.user,
-  });
+app.get('/api/auth/me', authenticate, async (req, res) => {
+  try {
+    // Fetch user with populated LVLs to get full LVL data
+    const user = await User.findById(req.user.id).populate('lvls', 'name code').select('-passwordHash');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        teams: user.teams.map(team => ({
+          id: team._id.toString(),
+          name: team.name,
+        })),
+        lvls: user.lvls ? user.lvls.map(lvl => ({
+          id: lvl._id.toString(),
+          name: lvl.name,
+          code: lvl.code,
+        })) : [],
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user data' });
+  }
 });
 
 // Import and register route modules
