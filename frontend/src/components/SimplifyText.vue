@@ -846,9 +846,18 @@ async function fetchTeams() {
     // Use nextTick to ensure computed property has updated
     await nextTick();
     if (availableTeams.value.length === 1 && !selectedTeamId.value) {
-      selectedTeamId.value = String(availableTeams.value[0].id);
+      const teamId = String(availableTeams.value[0].id);
+      console.log('Auto-selecting team:', teamId, availableTeams.value[0].name);
+      selectedTeamId.value = teamId;
       // Trigger team change to fetch projects
       onTeamChange();
+    } else {
+      console.log('Team selection:', {
+        availableTeams: availableTeams.value.length,
+        selectedTeamId: selectedTeamId.value,
+        teams: teams.value.map(t => ({ id: t.id, name: t.name })),
+        userTeams: user.value?.teams,
+      });
     }
   } catch (err) {
     console.error('Error fetching teams:', err);
