@@ -1111,6 +1111,10 @@ h4 {
   padding: var(--spacing-3) var(--spacing-5);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -1119,16 +1123,31 @@ h4 {
   box-shadow: var(--shadow-sm);
 }
 
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn-edit, .btn-edit-small {
   background: var(--color-success);
   color: var(--color-text-inverse);
   padding: var(--spacing-2) var(--spacing-4);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
 }
 
-.btn-edit:hover, .btn-edit-small:hover {
+.btn-edit:hover:not(:disabled), .btn-edit-small:hover:not(:disabled) {
   background: #059669;
+}
+
+.btn-edit:disabled, .btn-edit-small:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-delete, .btn-delete-small {
@@ -1137,10 +1156,19 @@ h4 {
   padding: var(--spacing-2) var(--spacing-4);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
 }
 
-.btn-delete:hover, .btn-delete-small:hover {
+.btn-delete:hover:not(:disabled), .btn-delete-small:hover:not(:disabled) {
   background: #DC2626;
+}
+
+.btn-delete:disabled, .btn-delete-small:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-view-small {
@@ -1564,10 +1592,19 @@ h4 {
   padding: var(--spacing-3) var(--spacing-5);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
 }
 
-.btn-cancel:hover {
+.btn-cancel:hover:not(:disabled) {
   background: #4B5563;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .modal-overlay {
