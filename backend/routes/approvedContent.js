@@ -24,18 +24,26 @@ router.get('/projects/:projectId/approved-content', authenticate, async (req, re
     if (req.user.role === 'SUPER_ADMIN') {
       // SUPER_ADMIN can see all
     } else if (req.user.role === 'ADMIN') {
-      const hasAccess = await checkLvlAccessForProject(req.user.lvls, project.lvls || []);
+      // ADMIN: Check LVL-based access
+      if (!req.user.lvls || req.user.lvls.length === 0) {
+        return res.status(403).json({ error: 'Not authorized to view approved content for this project' });
+      }
+      // Extract LVL IDs from project (handle both populated objects and IDs)
+      const projectLvlIds = (project.lvls || []).map(lvl => lvl._id || lvl);
+      const hasAccess = await checkLvlAccessForProject(req.user.lvls, projectLvlIds);
       if (!hasAccess) {
         return res.status(403).json({ error: 'Not authorized to view approved content for this project' });
       }
     } else if (req.user.role === 'TEAM_LEADER') {
       // Check if user's teams include the project's team
-      if (!req.user.teams.includes(project.team.toString())) {
+      const projectTeamId = project.team?._id || project.team;
+      if (!req.user.teams.includes(projectTeamId.toString())) {
         return res.status(403).json({ error: 'Not authorized to view approved content for this project' });
       }
     } else {
       // TEAM_MEMBER can see approved content for projects in their teams
-      if (!req.user.teams.includes(project.team.toString())) {
+      const projectTeamId = project.team?._id || project.team;
+      if (!req.user.teams.includes(projectTeamId.toString())) {
         return res.status(403).json({ error: 'Not authorized to view approved content for this project' });
       }
     }
@@ -95,16 +103,24 @@ router.get('/projects/:projectId/approved-content/:contentId', authenticate, asy
     if (req.user.role === 'SUPER_ADMIN') {
       // SUPER_ADMIN can see all
     } else if (req.user.role === 'ADMIN') {
-      const hasAccess = await checkLvlAccessForProject(req.user.lvls, project.lvls || []);
+      // ADMIN: Check LVL-based access
+      if (!req.user.lvls || req.user.lvls.length === 0) {
+        return res.status(403).json({ error: 'Not authorized to view this approved content' });
+      }
+      // Extract LVL IDs from project (handle both populated objects and IDs)
+      const projectLvlIds = (project.lvls || []).map(lvl => lvl._id || lvl);
+      const hasAccess = await checkLvlAccessForProject(req.user.lvls, projectLvlIds);
       if (!hasAccess) {
         return res.status(403).json({ error: 'Not authorized to view this approved content' });
       }
     } else if (req.user.role === 'TEAM_LEADER') {
-      if (!req.user.teams.includes(project.team.toString())) {
+      const projectTeamId = project.team?._id || project.team;
+      if (!req.user.teams.includes(projectTeamId.toString())) {
         return res.status(403).json({ error: 'Not authorized to view this approved content' });
       }
     } else {
-      if (!req.user.teams.includes(project.team.toString())) {
+      const projectTeamId = project.team?._id || project.team;
+      if (!req.user.teams.includes(projectTeamId.toString())) {
         return res.status(403).json({ error: 'Not authorized to view this approved content' });
       }
     }
@@ -143,12 +159,19 @@ router.delete('/projects/:projectId/approved-content/:contentId', authenticate, 
 
     // Check permissions
     if (req.user.role === 'ADMIN') {
-      const hasAccess = await checkLvlAccessForProject(req.user.lvls, project.lvls || []);
+      // ADMIN: Check LVL-based access
+      if (!req.user.lvls || req.user.lvls.length === 0) {
+        return res.status(403).json({ error: 'Not authorized to delete approved content from this project' });
+      }
+      // Extract LVL IDs from project (handle both populated objects and IDs)
+      const projectLvlIds = (project.lvls || []).map(lvl => lvl._id || lvl);
+      const hasAccess = await checkLvlAccessForProject(req.user.lvls, projectLvlIds);
       if (!hasAccess) {
         return res.status(403).json({ error: 'Not authorized to delete approved content from this project' });
       }
     } else if (req.user.role === 'TEAM_LEADER') {
-      if (!req.user.teams.includes(project.team.toString())) {
+      const projectTeamId = project.team?._id || project.team;
+      if (!req.user.teams.includes(projectTeamId.toString())) {
         return res.status(403).json({ error: 'Not authorized to delete approved content from this project' });
       }
     }
