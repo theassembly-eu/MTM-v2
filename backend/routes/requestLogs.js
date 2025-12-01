@@ -523,5 +523,174 @@ router.get('/approval-queue', authenticate, requireRoleOrHigher('TEAM_LEADER'), 
   }
 });
 
+// POST /api/request-logs/bulk-verify - Bulk verify texts (TEAM_LEADER or ADMIN)
+router.post('/bulk-verify', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
+  try {
+    const { logIds, notes } = req.body;
+    
+    if (!logIds || !Array.isArray(logIds) || logIds.length === 0) {
+      return res.status(400).json({ error: 'logIds array is required' });
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (const logId of logIds) {
+      try {
+        const log = await RequestLog.findById(logId).populate('project', 'lvls team');
+        
+        if (!log) {
+          errors.push({ logId, error: 'Request log not found' });
+          continue;
+        }
+
+        // Check permissions
+        if (req.user.role === 'ADMIN') {
+          const hasAccess = await checkLvlAccessForProject(req.user.lvls, log.project.lvls || []);
+          if (!hasAccess) {
+            errors.push({ logId, error: 'Not authorized to verify this log' });
+            continue;
+          }
+        } else if (req.user.role === 'TEAM_LEADER') {
+          const projectTeamId = log.project.team?._id || log.project.team;
+          if (!req.user.teams.includes(projectTeamId.toString())) {
+            errors.push({ logId, error: 'Not authorized to verify this log' });
+            continue;
+          }
+        }
+
+        // Can only verify if status is CANDIDATE
+        if (log.approvalStatus !== 'CANDIDATE') {
+          errors.push({ logId, error: `Cannot verify. Current status: ${log.approvalStatus}` });
+          continue;
+        }
+
+        log.approvalStatus = 'VERIFIED';
+        log.approvalMeta.verified = {
+          by: req.user.id,
+          at: new Date(),
+          notes: notes || '',
+        };
+        await log.save();
+
+        results.push({ logId, status: 'verified' });
+      } catch (err) {
+        console.error(`Error verifying log ${logId}:`, err);
+        errors.push({ logId, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      verified: results.length,
+      errors: errors.length,
+      results,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error('Error bulk verifying:', error);
+    res.status(500).json({ error: 'Failed to bulk verify', code: 'BULK_VERIFY_ERROR' });
+  }
+});
+
+// POST /api/request-logs/bulk-approve - Bulk approve texts (TEAM_LEADER or ADMIN)
+router.post('/bulk-approve', authenticate, requireRoleOrHigher('TEAM_LEADER'), async (req, res) => {
+  try {
+    const { logIds, notes } = req.body;
+    
+    if (!logIds || !Array.isArray(logIds) || logIds.length === 0) {
+      return res.status(400).json({ error: 'logIds array is required' });
+    }
+
+    const results = [];
+    const errors = [];
+    const ApprovedContent = (await import('../models/ApprovedContent.js')).default;
+
+    for (const logId of logIds) {
+      try {
+        const log = await RequestLog.findById(logId)
+          .populate('project', 'lvls team')
+          .populate('targetAudience', 'name')
+          .populate('outputFormat', 'name')
+          .populate('lvl', 'name code');
+        
+        if (!log) {
+          errors.push({ logId, error: 'Request log not found' });
+          continue;
+        }
+
+        // Check permissions
+        if (req.user.role === 'ADMIN') {
+          const hasAccess = await checkLvlAccessForProject(req.user.lvls, log.project.lvls || []);
+          if (!hasAccess) {
+            errors.push({ logId, error: 'Not authorized to approve this log' });
+            continue;
+          }
+        } else if (req.user.role === 'TEAM_LEADER') {
+          const projectTeamId = log.project.team?._id || log.project.team;
+          if (!req.user.teams.includes(projectTeamId.toString())) {
+            errors.push({ logId, error: 'Not authorized to approve this log' });
+            continue;
+          }
+        }
+
+        // Can only approve if status is VERIFIED
+        if (log.approvalStatus !== 'VERIFIED') {
+          errors.push({ logId, error: `Cannot approve. Current status: ${log.approvalStatus}` });
+          continue;
+        }
+
+        log.approvalStatus = 'APPROVED';
+        log.approvalMeta.approved = {
+          by: req.user.id,
+          at: new Date(),
+          notes: notes || '',
+        };
+        await log.save();
+
+        // Create ApprovedContent entry
+        try {
+          await ApprovedContent.create({
+            project: log.project._id,
+            requestLog: log._id,
+            originalText: log.originalText,
+            simplifiedText: log.simplifiedText,
+            targetAudience: log.targetAudience?._id,
+            outputFormat: log.outputFormat?._id,
+            lvl: log.lvl._id,
+            approvedBy: req.user.id,
+            metadata: {
+              originalRequestDate: log.createdAt,
+              originalUser: log.user,
+              verificationNotes: log.approvalMeta.verified?.notes,
+              approvalNotes: notes || '',
+            },
+          });
+        } catch (contentErr) {
+          if (contentErr.code !== 11000) { // Ignore duplicate key errors
+            throw contentErr;
+          }
+        }
+
+        results.push({ logId, status: 'approved' });
+      } catch (err) {
+        console.error(`Error approving log ${logId}:`, err);
+        errors.push({ logId, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      approved: results.length,
+      errors: errors.length,
+      results,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error('Error bulk approving:', error);
+    res.status(500).json({ error: 'Failed to bulk approve', code: 'BULK_APPROVE_ERROR' });
+  }
+});
+
 export default router;
 

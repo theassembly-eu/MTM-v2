@@ -9,6 +9,7 @@ import Users from './components/admin/Users.vue';
 import Configuration from './components/admin/Configuration.vue';
 import Analytics from './components/admin/Analytics.vue';
 import ABTests from './components/admin/ABTests.vue';
+import ApprovalQueue from './components/admin/ApprovalQueue.vue';
 
 const routes = [
   {
@@ -74,6 +75,12 @@ const routes = [
     name: 'AdminABTests',
     component: ABTests,
     meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN'] },
+  },
+  {
+    path: '/admin/approval-queue',
+    name: 'ApprovalQueue',
+    component: ApprovalQueue,
+    meta: { requiresAuth: true, requiresRole: ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER'] },
   },
 ];
 
