@@ -120,8 +120,12 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
 
 const { user: currentUser, hasRole } = useAuth();
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -258,27 +262,45 @@ async function saveUser() {
 
     if (editingUser.value) {
       await axios.put(`/api/users/${editingUser.value.id}`, data);
+      success('Gebruiker succesvol bijgewerkt');
     } else {
       await axios.post('/api/users', data);
+      success('Gebruiker succesvol aangemaakt');
     }
     await fetchData();
     closeModal();
   } catch (err) {
     console.error('Error saving user:', err);
-    error.value = err.response?.data?.error || 'Fout bij het opslaan van gebruiker';
+    const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van gebruiker';
+    error.value = errorMsg;
+    showError(errorMsg);
   } finally {
     saving.value = false;
   }
 }
 
 async function deleteUser(userId) {
-  if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
   try {
+    const confirmed = await confirm({
+      title: 'Gebruiker verwijderen',
+      message: 'Weet je zeker dat je deze gebruiker wilt verwijderen?',
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/users/${userId}`);
+    success('Gebruiker succesvol verwijderd');
     await fetchData();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting user:', err);
-    error.value = err.response?.data?.error || 'Fout bij het verwijderen van gebruiker';
+    const errorMsg = err.response?.data?.error || 'Fout bij het verwijderen van gebruiker';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 

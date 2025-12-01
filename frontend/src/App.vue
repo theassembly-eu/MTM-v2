@@ -94,14 +94,36 @@
     <main class="app-main">
       <router-view />
     </main>
+    
+    <!-- Global Toast Notifications -->
+    <Toast data-toast-container />
+    
+    <!-- Global Confirmation Modal -->
+    <ConfirmModal
+      :is-open="confirmState.isOpen"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :description="confirmState.description"
+      :confirm-text="confirmState.confirmText"
+      :cancel-text="confirmState.cancelText"
+      :type="confirmState.type"
+      :loading="confirmState.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:is-open="(val) => confirmState.isOpen = val"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useAuth } from './composables/useAuth.js';
+import { useConfirm } from './composables/useConfirm.js';
+import Toast from './components/common/Toast.vue';
+import ConfirmModal from './components/common/ConfirmModal.vue';
 
 const { user, isAuthenticated, userRole, logout, initAuth } = useAuth();
+const { confirmState, handleConfirm, handleCancel } = useConfirm();
 
 const userEmail = computed(() => user.value?.email || '');
 

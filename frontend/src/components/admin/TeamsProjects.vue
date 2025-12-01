@@ -381,8 +381,12 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
+import { useToast } from '../../composables/useToast.js';
+import { useConfirm } from '../../composables/useConfirm.js';
 
 const { user, hasRole } = useAuth();
+const { success, error: showError } = useToast();
+const { confirm } = useConfirm();
 
 const loading = ref(false);
 const error = ref(null);
@@ -552,14 +556,18 @@ async function saveTeam() {
   try {
     if (editingTeam.value) {
       await axios.put(`/api/teams/${editingTeam.value.id}`, teamForm.value);
+      success('Team succesvol bijgewerkt');
     } else {
       await axios.post('/api/teams', teamForm.value);
+      success('Team succesvol aangemaakt');
     }
     await fetchData();
     closeModals();
   } catch (err) {
     console.error('Error saving team:', err);
-    error.value = err.response?.data?.error || 'Fout bij het opslaan van team';
+    const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van team';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 
@@ -567,36 +575,68 @@ async function saveProject() {
   try {
     if (editingProject.value) {
       await axios.put(`/api/projects/${editingProject.value.id}`, projectForm.value);
+      success('Project succesvol bijgewerkt');
     } else {
       await axios.post('/api/projects', projectForm.value);
+      success('Project succesvol aangemaakt');
     }
     await fetchData();
     closeModals();
   } catch (err) {
     console.error('Error saving project:', err);
-    error.value = err.response?.data?.error || 'Fout bij het opslaan van project';
+    const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van project';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 
 async function deleteTeam(teamId) {
-  if (!confirm('Weet je zeker dat je dit team wilt verwijderen?')) return;
   try {
+    const confirmed = await confirm({
+      title: 'Team verwijderen',
+      message: 'Weet je zeker dat je dit team wilt verwijderen?',
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/teams/${teamId}`);
+    success('Team succesvol verwijderd');
     await fetchData();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting team:', err);
-    error.value = err.response?.data?.error || 'Fout bij het verwijderen van team';
+    const errorMsg = err.response?.data?.error || 'Fout bij het verwijderen van team';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 
 async function deleteProject(projectId) {
-  if (!confirm('Weet je zeker dat je dit project wilt verwijderen?')) return;
   try {
+    const confirmed = await confirm({
+      title: 'Project verwijderen',
+      message: 'Weet je zeker dat je dit project wilt verwijderen?',
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/projects/${projectId}`);
+    success('Project succesvol verwijderd');
     await fetchData();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting project:', err);
-    error.value = err.response?.data?.error || 'Fout bij het verwijderen van project';
+    const errorMsg = err.response?.data?.error || 'Fout bij het verwijderen van project';
+    error.value = errorMsg;
+    showError(errorMsg);
   }
 }
 
@@ -683,7 +723,7 @@ async function addTag(content) {
   if (!newTagInput.value.trim()) return;
   const tag = newTagInput.value.trim().toLowerCase();
   if (content.tags && content.tags.includes(tag)) {
-    alert('Deze tag bestaat al');
+    showError('Deze tag bestaat al');
     return;
   }
   try {
@@ -696,9 +736,10 @@ async function addTag(content) {
       approvedContent.value[index] = response.data;
     }
     newTagInput.value = '';
+    success('Tag toegevoegd');
   } catch (err) {
     console.error('Error adding tag:', err);
-    alert(err.response?.data?.error || 'Fout bij toevoegen tag');
+    showError(err.response?.data?.error || 'Fout bij toevoegen tag');
   }
 }
 
@@ -712,9 +753,10 @@ async function removeTag(content, tag) {
     if (index !== -1) {
       approvedContent.value[index] = response.data;
     }
+    success('Tag verwijderd');
   } catch (err) {
     console.error('Error removing tag:', err);
-    alert(err.response?.data?.error || 'Fout bij verwijderen tag');
+    showError(err.response?.data?.error || 'Fout bij verwijderen tag');
   }
 }
 
@@ -742,23 +784,35 @@ function viewFullContent(content) {
 }
 
 async function deleteApprovedContent(contentId) {
-  if (!confirm('Weet je zeker dat je deze goedgekeurde tekst wilt verwijderen?')) return;
   try {
+    const confirmed = await confirm({
+      title: 'Goedgekeurde tekst verwijderen',
+      message: 'Weet je zeker dat je deze goedgekeurde tekst wilt verwijderen?',
+      description: 'Deze actie kan niet ongedaan worden gemaakt.',
+      type: 'danger',
+      confirmText: 'Verwijderen',
+      cancelText: 'Annuleren',
+    });
+    
+    if (!confirmed) return;
+    
     await axios.delete(`/api/projects/${currentProject.value.id}/approved-content/${contentId}`);
+    success('Goedgekeurde tekst succesvol verwijderd');
     await fetchApprovedContent();
   } catch (err) {
+    if (err === false) return; // User cancelled
     console.error('Error deleting approved content:', err);
-    alert(err.response?.data?.error || 'Fout bij het verwijderen van goedgekeurde tekst');
+    showError(err.response?.data?.error || 'Fout bij het verwijderen van goedgekeurde tekst');
   }
 }
 
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
-    alert('Tekst gekopieerd naar klembord!');
+    success('Tekst gekopieerd naar klembord!');
   } catch (err) {
     console.error('Error copying to clipboard:', err);
-    alert('Fout bij kopiëren naar klembord');
+    showError('Fout bij kopiëren naar klembord');
   }
 }
 
