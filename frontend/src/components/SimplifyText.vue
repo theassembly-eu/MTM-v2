@@ -606,11 +606,41 @@ const availableTeams = computed(() => {
   
   // Otherwise, filter teams by user's teams
   if (!user.value || !user.value.teams || user.value.teams.length === 0) {
+    console.log('No user teams found:', {
+      hasUser: !!user.value,
+      hasTeams: !!user.value?.teams,
+      teamsLength: user.value?.teams?.length,
+      userTeams: user.value?.teams,
+    });
     return [];
   }
   
-  const userTeamIds = user.value.teams.map(t => String(t.id || t));
-  return teams.value.filter(team => userTeamIds.includes(String(team.id)));
+  // Extract team IDs from user's teams - handle different formats
+  const userTeamIds = user.value.teams.map(t => {
+    if (typeof t === 'string') return String(t);
+    if (typeof t === 'object') {
+      return String(t._id || t.id || t);
+    }
+    return String(t);
+  });
+  
+  console.log('Available teams computation:', {
+    userTeamIds,
+    allTeams: teams.value.map(t => ({ id: t.id, name: t.name })),
+    userTeams: user.value.teams,
+  });
+  
+  const filtered = teams.value.filter(team => {
+    const teamIdStr = String(team.id);
+    const matches = userTeamIds.includes(teamIdStr);
+    if (matches) {
+      console.log('Team match:', team.name, 'ID:', teamIdStr);
+    }
+    return matches;
+  });
+  
+  console.log('Available teams result:', filtered.length, filtered.map(t => t.name));
+  return filtered;
 });
 
 const availableProjects = computed(() => {
