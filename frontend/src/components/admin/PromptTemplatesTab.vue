@@ -242,8 +242,10 @@
               @click="saveTemplate" 
               :disabled="saving || !formData.name || (!formData.useComponents && !formData.prompt) || (formData.useComponents && formData.componentReferences.length === 0)"
               class="btn-primary"
+              :class="{ 'btn-loading': saving }"
             >
-              {{ saving ? 'Opslaan...' : 'Opslaan' }}
+              <span v-if="saving" class="btn-spinner"></span>
+              <span>{{ saving ? 'Opslaan...' : 'Opslaan' }}</span>
             </button>
             <button @click="closeModal" class="btn-secondary">Annuleren</button>
           </div>

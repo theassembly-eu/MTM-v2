@@ -141,7 +141,10 @@
           </div>
           <div class="modal-actions">
             <button type="button" @click="closeModals" class="btn-cancel">Annuleren</button>
-            <button type="submit" class="btn-primary">Opslaan</button>
+            <button type="submit" :disabled="savingTeam" class="btn-primary" :class="{ 'btn-loading': savingTeam }">
+              <span v-if="savingTeam" class="btn-spinner"></span>
+              <span>{{ savingTeam ? 'Opslaan...' : 'Opslaan' }}</span>
+            </button>
           </div>
         </form>
       </div>
@@ -188,7 +191,10 @@
           </div>
           <div class="modal-actions">
             <button type="button" @click="closeModals" class="btn-cancel">Annuleren</button>
-            <button type="submit" class="btn-primary">Opslaan</button>
+            <button type="submit" :disabled="savingTeam" class="btn-primary" :class="{ 'btn-loading': savingTeam }">
+              <span v-if="savingTeam" class="btn-spinner"></span>
+              <span>{{ savingTeam ? 'Opslaan...' : 'Opslaan' }}</span>
+            </button>
           </div>
         </form>
       </div>
@@ -412,6 +418,8 @@ const { success, error: showError } = useToast();
 const { confirm } = useConfirm();
 
 const loading = ref(false);
+const savingTeam = ref(false);
+const savingProject = ref(false);
 const error = ref(null);
 const teams = ref([]);
 const projects = ref([]);
@@ -593,6 +601,7 @@ function closeModals() {
 }
 
 async function saveTeam() {
+  savingTeam.value = true;
   try {
     if (editingTeam.value) {
       await axios.put(`/api/teams/${editingTeam.value.id}`, teamForm.value);
@@ -608,10 +617,13 @@ async function saveTeam() {
     const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van team';
     error.value = errorMsg;
     showError(errorMsg);
+  } finally {
+    savingTeam.value = false;
   }
 }
 
 async function saveProject() {
+  savingProject.value = true;
   try {
     if (editingProject.value) {
       await axios.put(`/api/projects/${editingProject.value.id}`, projectForm.value);
@@ -627,6 +639,8 @@ async function saveProject() {
     const errorMsg = err.response?.data?.error || 'Fout bij het opslaan van project';
     error.value = errorMsg;
     showError(errorMsg);
+  } finally {
+    savingProject.value = false;
   }
 }
 
@@ -1681,6 +1695,28 @@ h4 {
   background: var(--color-bg-primary);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
+}
+
+.btn-loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn-loading .btn-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 .loading {
