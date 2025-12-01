@@ -12,6 +12,15 @@
       </button>
     </div>
 
+    <div class="search-section">
+      <SearchInput
+        v-model="searchQuery"
+        @search="handleSearch"
+        placeholder="Zoeken op e-mail, naam of rol..."
+        label="Zoeken"
+      />
+    </div>
+
     <LoadingSpinner v-if="loading" message="Gebruikers laden..." />
     <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -674,6 +683,36 @@ onMounted(() => {
 
 .btn-cancel:hover {
   background: #4B5563;
+}
+
+.search-section {
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.btn-loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn-loading .btn-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 .input-error {
