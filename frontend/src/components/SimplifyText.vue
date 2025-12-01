@@ -824,15 +824,12 @@ async function fetchTeams() {
     
     // Auto-select team if user only has access to one team
     // Use nextTick to ensure computed property has updated
-    await import('vue').then(({ nextTick }) => {
-      nextTick(() => {
-        if (availableTeams.value.length === 1 && !selectedTeamId.value) {
-          selectedTeamId.value = String(availableTeams.value[0].id);
-          // Trigger team change to fetch projects
-          onTeamChange();
-        }
-      });
-    });
+    await nextTick();
+    if (availableTeams.value.length === 1 && !selectedTeamId.value) {
+      selectedTeamId.value = String(availableTeams.value[0].id);
+      // Trigger team change to fetch projects
+      onTeamChange();
+    }
   } catch (err) {
     console.error('Error fetching teams:', err);
   } finally {
@@ -844,7 +841,8 @@ async function fetchProjects() {
   if (!selectedTeamId.value) return;
   loadingProjects.value = true;
   try {
-    const response = await axios.get(`/api/projects?teamId=${selectedTeamId.value}`);
+    const teamIdStr = String(selectedTeamId.value);
+    const response = await axios.get(`/api/projects?teamId=${teamIdStr}`);
     projects.value = response.data.map(project => {
       // Normalize LVLs - handle both populated objects and ObjectIds
       let normalizedLvls = [];
