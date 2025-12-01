@@ -34,6 +34,17 @@
           </option>
         </select>
       </div>
+      <div class="filter-group">
+        <label for="status-filter">Goedkeuringsstatus</label>
+        <select id="status-filter" v-model="selectedStatus" @change="fetchRequestLogs">
+          <option value="">Alle statussen</option>
+          <option value="DRAFT">Concept</option>
+          <option value="CANDIDATE">Kandidaat</option>
+          <option value="VERIFIED">Geverifieerd</option>
+          <option value="APPROVED">Goedgekeurd</option>
+          <option value="REJECTED">Afgewezen</option>
+        </select>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">Laden...</div>
@@ -52,10 +63,15 @@
       <ul class="results-list">
         <li v-for="log in requestLogs" :key="log.id" class="result-item">
           <div class="result-header">
-            <div class="result-meta">
-              <strong>Team:</strong> {{ log.team?.name || 'Onbekend' }} | 
-              <strong>Project:</strong> {{ log.project?.name || 'Onbekend' }} | 
-              <strong>LVL:</strong> {{ log.lvl?.name || 'Onbekend' }}
+            <div class="result-header-top">
+              <div class="result-meta">
+                <strong>Team:</strong> {{ log.team?.name || 'Onbekend' }} | 
+                <strong>Project:</strong> {{ log.project?.name || 'Onbekend' }} | 
+                <strong>LVL:</strong> {{ log.lvl?.name || 'Onbekend' }}
+              </div>
+              <span :class="['status-badge', `status-${log.approvalStatus?.toLowerCase() || 'draft'}`]">
+                {{ getStatusLabel(log.approvalStatus) }}
+              </span>
             </div>
             <div class="result-meta">
               <strong>Doelgroep:</strong> {{ log.targetAudience?.name || 'N/A' }} | 
@@ -79,6 +95,116 @@
               <strong>Vereenvoudigde Tekst:</strong>
               <pre>{{ log.simplifiedText }}</pre>
             </div>
+
+            <!-- Approval Workflow Timeline -->
+            <div v-if="log.approvalMeta" class="approval-timeline">
+              <h4>Goedkeuringsproces</h4>
+              <div class="timeline-item" v-if="log.approvalMeta.taggedAsCandidate">
+                <span class="timeline-icon">🏷️</span>
+                <div class="timeline-content">
+                  <strong>Gemarkeerd als kandidaat</strong>
+                  <span class="timeline-meta">
+                    door {{ log.approvalMeta.taggedAsCandidate.by?.email || 'Onbekend' }}
+                    op {{ formatDate(log.approvalMeta.taggedAsCandidate.at) }}
+                  </span>
+                </div>
+              </div>
+              <div class="timeline-item" v-if="log.approvalMeta.verified">
+                <span class="timeline-icon">✓</span>
+                <div class="timeline-content">
+                  <strong>Geverifieerd</strong>
+                  <span class="timeline-meta">
+                    door {{ log.approvalMeta.verified.by?.email || 'Onbekend' }}
+                    op {{ formatDate(log.approvalMeta.verified.at) }}
+                  </span>
+                  <p v-if="log.approvalMeta.verified.notes" class="timeline-notes">
+                    {{ log.approvalMeta.verified.notes }}
+                  </p>
+                </div>
+              </div>
+              <div class="timeline-item" v-if="log.approvalMeta.approved">
+                <span class="timeline-icon">✅</span>
+                <div class="timeline-content">
+                  <strong>Goedgekeurd</strong>
+                  <span class="timeline-meta">
+                    door {{ log.approvalMeta.approved.by?.email || 'Onbekend' }}
+                    op {{ formatDate(log.approvalMeta.approved.at) }}
+                  </span>
+                  <p v-if="log.approvalMeta.approved.notes" class="timeline-notes">
+                    {{ log.approvalMeta.approved.notes }}
+                  </p>
+                </div>
+              </div>
+              <div class="timeline-item rejected" v-if="log.approvalMeta.rejected">
+                <span class="timeline-icon">❌</span>
+                <div class="timeline-content">
+                  <strong>Afgewezen</strong>
+                  <span class="timeline-meta">
+                    door {{ log.approvalMeta.rejected.by?.email || 'Onbekend' }}
+                    op {{ formatDate(log.approvalMeta.rejected.at) }}
+                  </span>
+                  <p class="timeline-notes">
+                    <strong>Reden:</strong> {{ log.approvalMeta.rejected.reason }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div v-if="log.comments && log.comments.length > 0" class="comments-section">
+              <h4>Opmerkingen ({{ log.comments.length }})</h4>
+              <div v-for="comment in log.comments" :key="comment._id || comment.id" class="comment-item">
+                <div class="comment-header">
+                  <strong>{{ comment.user?.email || 'Onbekend' }}</strong>
+                  <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+                  <span v-if="comment.edited" class="comment-edited">(bewerkt)</span>
+                </div>
+                <p class="comment-text">{{ comment.text }}</p>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+              <button
+                v-if="log.approvalStatus === 'DRAFT' && canTagCandidate"
+                @click="tagAsCandidate(log.id)"
+                class="btn-action btn-candidate"
+                :disabled="actionLoading === log.id"
+              >
+                🏷️ Markeer als kandidaat
+              </button>
+              <button
+                v-if="log.approvalStatus === 'CANDIDATE' && canVerify"
+                @click="showVerifyModal(log)"
+                class="btn-action btn-verify"
+                :disabled="actionLoading === log.id"
+              >
+                ✓ Verifieer
+              </button>
+              <button
+                v-if="log.approvalStatus === 'VERIFIED' && canApprove"
+                @click="showApproveModal(log)"
+                class="btn-action btn-approve"
+                :disabled="actionLoading === log.id"
+              >
+                ✅ Keur goed
+              </button>
+              <button
+                v-if="(log.approvalStatus === 'CANDIDATE' || log.approvalStatus === 'VERIFIED') && canReject"
+                @click="showRejectModal(log)"
+                class="btn-action btn-reject"
+                :disabled="actionLoading === log.id"
+              >
+                ❌ Wijzen af
+              </button>
+              <button
+                @click="showCommentModal(log)"
+                class="btn-action btn-comment"
+              >
+                💬 Opmerking toevoegen
+              </button>
+            </div>
+
             <div v-if="log.geoContext || log.includeKeywords?.length > 0 || log.avoidKeywords?.length > 0" class="context-info">
               <div v-if="log.geoContext"><strong>Geografische Context:</strong> {{ log.geoContext }}</div>
               <div v-if="log.includeKeywords?.length > 0">
@@ -116,12 +242,95 @@
         </button>
       </div>
     </div>
+
+    <!-- Verify Modal -->
+    <div v-if="showVerify" class="modal-overlay" @click="showVerify = false">
+      <div class="modal" @click.stop>
+        <h3>Tekst Verifiëren</h3>
+        <p>Controleer de tekst op nauwkeurigheid en AI-hallucinaties.</p>
+        <textarea
+          v-model="verifyNotes"
+          placeholder="Optionele notities bij verificatie..."
+          rows="4"
+          class="modal-textarea"
+        ></textarea>
+        <div class="modal-actions">
+          <button @click="showVerify = false" class="btn-secondary">Annuleren</button>
+          <button @click="verifyText" class="btn-primary" :disabled="actionLoading">
+            Verifieer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approve Modal -->
+    <div v-if="showApprove" class="modal-overlay" @click="showApprove = false">
+      <div class="modal" @click.stop>
+        <h3>Tekst Goedkeuren</h3>
+        <p>Deze tekst zal worden opgeslagen in de goedgekeurde bibliotheek van het project.</p>
+        <textarea
+          v-model="approveNotes"
+          placeholder="Optionele notities bij goedkeuring..."
+          rows="4"
+          class="modal-textarea"
+        ></textarea>
+        <div class="modal-actions">
+          <button @click="showApprove = false" class="btn-secondary">Annuleren</button>
+          <button @click="approveText" class="btn-primary" :disabled="actionLoading">
+            Keur goed
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div v-if="showReject" class="modal-overlay" @click="showReject = false">
+      <div class="modal" @click.stop>
+        <h3>Tekst Afwijzen</h3>
+        <p>Geef een reden op voor de afwijzing.</p>
+        <textarea
+          v-model="rejectReason"
+          placeholder="Reden voor afwijzing (verplicht)..."
+          rows="4"
+          class="modal-textarea"
+          required
+        ></textarea>
+        <div class="modal-actions">
+          <button @click="showReject = false" class="btn-secondary">Annuleren</button>
+          <button @click="rejectText" class="btn-danger" :disabled="!rejectReason.trim() || actionLoading">
+            Wijzen af
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comment Modal -->
+    <div v-if="showComment" class="modal-overlay" @click="showComment = false">
+      <div class="modal" @click.stop>
+        <h3>Opmerking Toevoegen</h3>
+        <textarea
+          v-model="commentText"
+          placeholder="Voeg een opmerking toe..."
+          rows="6"
+          class="modal-textarea"
+        ></textarea>
+        <div class="modal-actions">
+          <button @click="showComment = false" class="btn-secondary">Annuleren</button>
+          <button @click="addComment" class="btn-primary" :disabled="!commentText.trim() || actionLoading">
+            Toevoegen
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
+import { useAuth } from '../composables/useAuth.js';
+
+const { user, hasRole } = useAuth();
 
 const requestLogs = ref([]);
 const loading = ref(true);
@@ -129,6 +338,7 @@ const error = ref(null);
 const searchQuery = ref('');
 const selectedProjectId = ref('');
 const selectedTeamId = ref('');
+const selectedStatus = ref('');
 const projects = ref([]);
 const teams = ref([]);
 const pagination = ref({
@@ -137,6 +347,24 @@ const pagination = ref({
   total: 0,
   totalPages: 0,
 });
+
+// Modal states
+const showVerify = ref(false);
+const showApprove = ref(false);
+const showReject = ref(false);
+const showComment = ref(false);
+const verifyNotes = ref('');
+const approveNotes = ref('');
+const rejectReason = ref('');
+const commentText = ref('');
+const currentLogId = ref(null);
+const actionLoading = ref(null);
+
+// Permission checks
+const canTagCandidate = computed(() => true); // All authenticated users
+const canVerify = computed(() => hasRole('TEAM_LEADER') || hasRole('ADMIN') || hasRole('SUPER_ADMIN'));
+const canApprove = computed(() => hasRole('TEAM_LEADER') || hasRole('ADMIN') || hasRole('SUPER_ADMIN'));
+const canReject = computed(() => hasRole('TEAM_LEADER') || hasRole('ADMIN') || hasRole('SUPER_ADMIN'));
 
 let debounceTimer = null;
 
@@ -197,6 +425,10 @@ async function fetchRequestLogs() {
       params.projectId = selectedProjectId.value;
     }
 
+    if (selectedStatus.value) {
+      params.approvalStatus = selectedStatus.value;
+    }
+
     const response = await axios.get('/api/request-logs', { params });
     requestLogs.value = response.data.data.map(log => ({
       id: log._id || log.id,
@@ -215,6 +447,9 @@ async function fetchRequestLogs() {
       referenceIds: log.referenceIds,
       modelMeta: log.modelMeta,
       createdAt: log.createdAt,
+      approvalStatus: log.approvalStatus,
+      approvalMeta: log.approvalMeta,
+      comments: log.comments || [],
     }));
 
     pagination.value = {
@@ -250,12 +485,138 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleString('nl-BE');
 }
 
+function getStatusLabel(status) {
+  const labels = {
+    DRAFT: 'Concept',
+    CANDIDATE: 'Kandidaat',
+    VERIFIED: 'Geverifieerd',
+    APPROVED: 'Goedgekeurd',
+    REJECTED: 'Afgewezen',
+  };
+  return labels[status] || status;
+}
+
+async function tagAsCandidate(logId) {
+  actionLoading.value = logId;
+  try {
+    await axios.put(`/api/request-logs/${logId}/tag-candidate`);
+    await fetchRequestLogs();
+  } catch (err) {
+    console.error('Error tagging as candidate:', err);
+    alert(err.response?.data?.error || 'Fout bij markeren als kandidaat');
+  } finally {
+    actionLoading.value = null;
+  }
+}
+
+function showVerifyModal(log) {
+  currentLogId.value = log.id;
+  verifyNotes.value = '';
+  showVerify.value = true;
+}
+
+async function verifyText() {
+  if (!currentLogId.value) return;
+  actionLoading.value = currentLogId.value;
+  try {
+    await axios.put(`/api/request-logs/${currentLogId.value}/verify`, {
+      notes: verifyNotes.value,
+    });
+    showVerify.value = false;
+    verifyNotes.value = '';
+    await fetchRequestLogs();
+  } catch (err) {
+    console.error('Error verifying:', err);
+    alert(err.response?.data?.error || 'Fout bij verifiëren');
+  } finally {
+    actionLoading.value = null;
+  }
+}
+
+function showApproveModal(log) {
+  currentLogId.value = log.id;
+  approveNotes.value = '';
+  showApprove.value = true;
+}
+
+async function approveText() {
+  if (!currentLogId.value) return;
+  actionLoading.value = currentLogId.value;
+  try {
+    await axios.put(`/api/request-logs/${currentLogId.value}/approve`, {
+      notes: approveNotes.value,
+    });
+    showApprove.value = false;
+    approveNotes.value = '';
+    await fetchRequestLogs();
+    alert('Tekst succesvol goedgekeurd en opgeslagen in projectbibliotheek!');
+  } catch (err) {
+    console.error('Error approving:', err);
+    alert(err.response?.data?.error || 'Fout bij goedkeuren');
+  } finally {
+    actionLoading.value = null;
+  }
+}
+
+function showRejectModal(log) {
+  currentLogId.value = log.id;
+  rejectReason.value = '';
+  showReject.value = true;
+}
+
+async function rejectText() {
+  if (!currentLogId.value || !rejectReason.value.trim()) return;
+  actionLoading.value = currentLogId.value;
+  try {
+    await axios.put(`/api/request-logs/${currentLogId.value}/reject`, {
+      reason: rejectReason.value,
+    });
+    showReject.value = false;
+    rejectReason.value = '';
+    await fetchRequestLogs();
+  } catch (err) {
+    console.error('Error rejecting:', err);
+    alert(err.response?.data?.error || 'Fout bij afwijzen');
+  } finally {
+    actionLoading.value = null;
+  }
+}
+
+function showCommentModal(log) {
+  currentLogId.value = log.id;
+  commentText.value = '';
+  showComment.value = true;
+}
+
+async function addComment() {
+  if (!currentLogId.value || !commentText.value.trim()) return;
+  actionLoading.value = currentLogId.value;
+  try {
+    await axios.post(`/api/request-logs/${currentLogId.value}/comments`, {
+      text: commentText.value,
+    });
+    showComment.value = false;
+    commentText.value = '';
+    await fetchRequestLogs();
+  } catch (err) {
+    console.error('Error adding comment:', err);
+    alert(err.response?.data?.error || 'Fout bij toevoegen opmerking');
+  } finally {
+    actionLoading.value = null;
+  }
+}
+
 onMounted(async () => {
   await Promise.all([fetchTeams(), fetchProjects()]);
   await fetchRequestLogs();
 });
 
 watch(selectedProjectId, () => {
+  pagination.value.page = 1;
+  fetchRequestLogs();
+});
+
+watch(selectedStatus, () => {
   pagination.value.page = 1;
   fetchRequestLogs();
 });
@@ -354,6 +715,52 @@ watch(selectedProjectId, () => {
   border-bottom: 1px solid var(--color-border);
 }
 
+.result-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.status-draft {
+  background: #E5E7EB;
+  color: #6B7280;
+}
+
+.status-candidate {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-verified {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.status-approved {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.status-rejected {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
 .result-meta {
   margin: var(--spacing-2) 0;
   font-size: var(--font-size-sm);
@@ -403,6 +810,309 @@ watch(selectedProjectId, () => {
 .context-info div {
   margin: var(--spacing-2) 0;
   color: var(--color-text-secondary);
+}
+
+.approval-timeline {
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.approval-timeline h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.timeline-item {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.timeline-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.timeline-item.rejected {
+  border-left: 3px solid var(--color-error);
+  padding-left: var(--spacing-3);
+}
+
+.timeline-icon {
+  font-size: var(--font-size-lg);
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.timeline-content {
+  flex: 1;
+}
+
+.timeline-content strong {
+  display: block;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-1);
+}
+
+.timeline-meta {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-2);
+}
+
+.timeline-notes {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: var(--spacing-2) 0 0 0;
+  font-style: italic;
+}
+
+.comments-section {
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.comments-section h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.comment-item {
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+
+.comment-header strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.comment-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.comment-edited {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.comment-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: var(--line-height-relaxed);
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.btn-action {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+}
+
+.btn-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-candidate {
+  background: #DBEAFE;
+  color: #1E40AF;
+  border-color: #93C5FD;
+}
+
+.btn-verify {
+  background: #FEF3C7;
+  color: #92400E;
+  border-color: #FDE68A;
+}
+
+.btn-approve {
+  background: #D1FAE5;
+  color: #065F46;
+  border-color: #6EE7B7;
+}
+
+.btn-reject {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-color: #FCA5A5;
+}
+
+.btn-comment {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: var(--spacing-4);
+}
+
+.modal {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-8);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
+}
+
+.modal h3 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-top: 0;
+  margin-bottom: var(--spacing-4);
+}
+
+.modal p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-4);
+}
+
+.modal-textarea {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: var(--spacing-6);
+}
+
+.modal-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+.btn-secondary {
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-text-tertiary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #4B5563;
+}
+
+.btn-primary {
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #DC2626;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .pagination-info {
