@@ -148,7 +148,6 @@ import axios from 'axios';
 import { useAuth } from '../../composables/useAuth.js';
 import { useToast } from '../../composables/useToast.js';
 import { useConfirm } from '../../composables/useConfirm.js';
-import { useFormValidation } from '../../composables/useFormValidation.js';
 import EmptyState from '../common/EmptyState.vue';
 
 const { user: currentUser, hasRole } = useAuth();
@@ -264,11 +263,8 @@ function closeModal() {
 }
 
 async function saveUser() {
-  // Mark all fields as touched
-  Object.keys(validationRules).forEach(field => touchField(field));
-  
   // Validate form
-  if (!validate(userForm.value)) {
+  if (!validateForm()) {
     error.value = 'Controleer de formuliervelden en corrigeer de fouten.';
     return;
   }
