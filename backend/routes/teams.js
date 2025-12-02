@@ -160,39 +160,75 @@ router.put('/:id', authenticate, requireTeamOwnership((req) => req.params.id), a
     }
 
     // Check if team has projects before allowing LVL changes
-    if (lvls && JSON.stringify(lvls.sort()) !== JSON.stringify(team.lvls.map(id => id.toString()).sort())) {
-      const projectCount = await Project.countDocuments({ team: req.params.id });
-      if (projectCount > 0) {
-        return res.status(400).json({ 
-          error: 'Cannot change LVLs when team has projects', 
-          projectCount 
-        });
+    if (lvls) {
+      // Normalize LVL arrays for comparison (handle both ObjectIds and strings)
+      const currentLvls = (team.lvls || []).map(id => id.toString()).sort();
+      const requestedLvls = lvls.map(id => id.toString()).sort();
+      
+      if (JSON.stringify(currentLvls) !== JSON.stringify(requestedLvls)) {
+        const projectCount = await Project.countDocuments({ team: req.params.id });
+        if (projectCount > 0) {
+          return res.status(400).json({ 
+            error: 'Cannot change LVLs when team has projects', 
+            projectCount 
+          });
+        }
       }
     }
 
     // Update team
-    if (name) team.name = name;
-    if (lvls) team.lvls = lvls;
-    if (members) {
+    if (name !== undefined) {
+      team.name = name;
+    }
+    
+    if (lvls !== undefined && Array.isArray(lvls)) {
+      // Ensure all LVL IDs are valid ObjectIds
+      const validLvls = lvls.filter(lvl => lvl && (typeof lvl === 'string' || lvl.toString));
+      if (validLvls.length === 0) {
+        return res.status(400).json({ error: 'At least one LVL is required' });
+      }
+      team.lvls = validLvls;
+    }
+    
+    if (members !== undefined && Array.isArray(members)) {
       // Remove old members from teams array
-      const oldMembers = team.members.map(id => id.toString());
-      const newMembers = members.map(id => id.toString());
+      const oldMembers = (team.members || []).map(id => id.toString());
+      const newMembers = members.map(id => id.toString()).filter(id => id);
       const toRemove = oldMembers.filter(id => !newMembers.includes(id));
       const toAdd = newMembers.filter(id => !oldMembers.includes(id));
 
-      await User.updateMany(
-        { _id: { $in: toRemove } },
-        { $pull: { teams: req.params.id } }
-      );
-      await User.updateMany(
-        { _id: { $in: toAdd } },
-        { $addToSet: { teams: req.params.id } }
-      );
+      if (toRemove.length > 0) {
+        await User.updateMany(
+          { _id: { $in: toRemove } },
+          { $pull: { teams: req.params.id } }
+        );
+      }
+      
+      if (toAdd.length > 0) {
+        await User.updateMany(
+          { _id: { $in: toAdd } },
+          { $addToSet: { teams: req.params.id } }
+        );
+      }
 
       team.members = members;
     }
 
-    await team.save();
+    try {
+      await team.save();
+    } catch (saveError) {
+      console.error('Error saving team:', saveError);
+      // Provide more detailed error information
+      if (saveError.errors) {
+        const errorMessages = Object.values(saveError.errors).map(err => err.message);
+        return res.status(400).json({ 
+          error: 'Validation error', 
+          details: errorMessages,
+          code: 'VALIDATION_ERROR'
+        });
+      }
+      throw saveError; // Re-throw to be caught by outer catch
+    }
 
     const populatedTeam = await Team.findById(team._id)
       .populate('lvls', 'name code')

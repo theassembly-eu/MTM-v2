@@ -38,12 +38,12 @@ The system understands the Belgian governance structure and can adapt language b
 - **Geographic context**: Specific cities and regions across Belgium
 - **Project-specific requirements**: Customizable settings for different initiatives
 
-### Flexible Output Formats
-Content can be formatted for various purposes:
-- **Summaries**: Concise overviews of complex topics
-- **Social media**: Short, engaging posts suitable for platforms like Instagram
-- **Professional networks**: Medium-length content optimized for LinkedIn
-- **Structured lists**: Bullet-point formats for quick scanning
+### Flexible & Customizable Output Formats
+Content can be formatted for various purposes with built-in formats or completely custom structures:
+- **Built-in formats**: Summaries, social media posts (Instagram-style), professional content (LinkedIn-style), and structured bullet points
+- **Custom output formats**: Create your own formats with specific section structures (e.g., landing pages with hero sections, feature lists, and call-to-action sections)
+- **Dynamic structure building**: Define custom output structures with ordered sections, required/optional fields, and detailed instructions
+- **Format templates**: Save and reuse custom formats across projects and teams
 
 ### Research Mode
 An advanced feature that enables the AI to gather additional context from web sources before simplifying text, ensuring the most accurate and up-to-date information.
@@ -57,6 +57,7 @@ Organizations can organize their work through:
 
 ### Customization & Control
 - **Dictionary management**: Define preferred terms and their simplified alternatives
+- **Custom output formats**: Create formats with custom section structures, ordering, and requirements for specialized use cases
 - **Prompt templates**: Save and reuse successful simplification approaches
 - **Approval workflows**: Review and approve content before publication
 - **Analytics dashboard**: Track usage patterns and measure impact
@@ -75,7 +76,7 @@ Make political platforms, campaign materials, and policy positions accessible to
 Improve communication with the public across all levels of government and public services.
 
 ### Communication Teams
-Streamline the process of creating multiple versions of content for different channels and audiences.
+Streamline the process of creating multiple versions of content for different channels and audiences. Create custom output formats tailored to specific campaigns, landing pages, or communication strategies.
 
 ---
 
@@ -83,7 +84,7 @@ Streamline the process of creating multiple versions of content for different ch
 
 **Accessibility**: Break down language barriers and make information truly accessible to everyone.
 
-**Efficiency**: Reduce the time and effort required to create multiple versions of content for different audiences.
+**Efficiency**: Reduce the time and effort required to create multiple versions of content for different audiences. Create custom output formats once and reuse them across projects.
 
 **Consistency**: Ensure consistent messaging across teams and projects while maintaining brand voice.
 
@@ -98,6 +99,8 @@ Streamline the process of creating multiple versions of content for different ch
 Built with modern web technologies, MensentaalMachine offers:
 - **Secure access** with role-based permissions
 - **Scalable architecture** that grows with your organization
+- **Dynamic output formatting** with fully customizable structure definitions
+- **Backward compatibility** ensuring existing formats continue to work seamlessly
 - **Reliable performance** for mission-critical communications
 - **Intuitive interface** that requires minimal training
 
