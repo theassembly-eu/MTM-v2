@@ -181,19 +181,31 @@ watch(() => props.modelValue, (newValue) => {
     // Prevent circular updates
     if (isUpdatingFromProps) return;
     
-    const newSections = newValue?.sections || [];
+    // Safety check for invalid data
+    if (!newValue || typeof newValue !== 'object') {
+      if (sections.value.length > 0) {
+        sections.value = [];
+      }
+      return;
+    }
+    
+    const newSections = Array.isArray(newValue.sections) ? newValue.sections : [];
     
     // Only update if actually different
     if (!sectionsEqual(sections.value, newSections)) {
       isUpdatingFromProps = true;
       
       if (newSections.length > 0) {
-        sections.value = newSections.map(s => ({
-          ...s,
-          _tempId: s._tempId || `temp_${tempIdCounter++}`,
-          required: s.required !== undefined ? s.required : true,
-          order: s.order !== undefined ? s.order : 999,
-        }));
+        sections.value = newSections.map(s => {
+          // Safety check for each section
+          if (!s || typeof s !== 'object') return null;
+          return {
+            ...s,
+            _tempId: s._tempId || `temp_${tempIdCounter++}`,
+            required: s.required !== undefined ? s.required : true,
+            order: s.order !== undefined ? s.order : 999,
+          };
+        }).filter(s => s !== null); // Remove any invalid sections
       } else {
         sections.value = [];
       }
@@ -209,6 +221,7 @@ watch(() => props.modelValue, (newValue) => {
   } catch (error) {
     console.error('Error in OutputStructureEditor watch:', error);
     isUpdatingFromProps = false;
+    // Don't break the component - just log the error
   }
 }, { immediate: true });
 
