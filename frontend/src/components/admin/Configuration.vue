@@ -369,6 +369,28 @@ function editItem(item) {
 }
 
 const modalCloseGuard = ref(false);
+const showModalInternal = ref(false);
+
+// Use computed to control modal state
+const showModal = computed({
+  get() {
+    return showModalInternal.value;
+  },
+  set(newValue) {
+    // Only allow closing if guard is set (explicit close) or if opening
+    if (newValue === true) {
+      modalCloseGuard.value = false;
+      showModalInternal.value = true;
+    } else if (modalCloseGuard.value) {
+      // Only close if guard is set (explicit close)
+      showModalInternal.value = false;
+      modalCloseGuard.value = false;
+    } else {
+      // Prevent unexpected closure - log warning
+      console.warn('Attempted to close modal without explicit close call, preventing closure');
+    }
+  }
+});
 
 function closeModal() {
   modalCloseGuard.value = true;
@@ -386,10 +408,6 @@ function closeModal() {
     behavioralRules: [],
   };
   placesText.value = '';
-  // Reset guard after cleanup
-  setTimeout(() => {
-    modalCloseGuard.value = false;
-  }, 100);
 }
 
 async function saveItem() {
