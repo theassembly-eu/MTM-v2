@@ -144,6 +144,12 @@
               </label>
               <small class="form-hint">Wanneer ingeschakeld, moet de output een specifieke structuur volgen (Emotional Core Message, Problem Statement, etc.).</small>
             </div>
+            
+            <!-- Output Structure Editor -->
+            <OutputStructureEditor
+              v-model="itemForm.outputStructure"
+              :saving="saving"
+            />
           </div>
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="btn-cancel">Annuleren</button>
@@ -167,6 +173,7 @@ import { useConfirm } from '../../composables/useConfirm.js';
 import ConfigList from './ConfigList.vue';
 import PromptTemplatesTab from './PromptTemplatesTab.vue';
 import SystemPromptTemplatesTab from './SystemPromptTemplatesTab.vue';
+import OutputStructureEditor from './OutputStructureEditor.vue';
 
 const { userRole } = useAuth();
 const { success, error: showError } = useToast();
@@ -208,6 +215,8 @@ const itemForm = ref({
   places: [],
   requiresImageSuggestion: false,
   requiresStructuredOutput: true,
+  outputStructure: { sections: [] },
+  behavioralRules: [],
 });
 
 const placesText = ref('');
@@ -321,6 +330,8 @@ function showCreateModal(type) {
     places: [],
     requiresImageSuggestion: false,
     requiresStructuredOutput: true,
+    outputStructure: { sections: [] },
+    behavioralRules: [],
   };
   placesText.value = '';
   showModal.value = true;
@@ -343,6 +354,8 @@ function editItem(item) {
     places: item.places || [],
     requiresImageSuggestion: item.requiresImageSuggestion || false,
     requiresStructuredOutput: item.requiresStructuredOutput !== undefined ? item.requiresStructuredOutput : true,
+    outputStructure: item.outputStructure || { sections: [] },
+    behavioralRules: item.behavioralRules || [],
   };
   placesText.value = (item.places || []).join('\n');
   showModal.value = true;
@@ -359,6 +372,8 @@ function closeModal() {
     places: [],
     requiresImageSuggestion: false,
     requiresStructuredOutput: true,
+    outputStructure: { sections: [] },
+    behavioralRules: [],
   };
   placesText.value = '';
 }
@@ -378,6 +393,24 @@ async function saveItem() {
     
     if ((activeTab.value === 'languages' || activeTab.value === 'lvls') && data.code) {
       data.code = data.code.toUpperCase();
+    }
+
+    // For output formats, ensure outputStructure is properly formatted
+    if (activeTab.value === 'formats') {
+      // Only send outputStructure if it has sections
+      if (!data.outputStructure || !data.outputStructure.sections || data.outputStructure.sections.length === 0) {
+        // Remove empty outputStructure to use default
+        delete data.outputStructure;
+      } else {
+        // Validate sections have names
+        const invalidSections = data.outputStructure.sections.filter(s => !s.name || s.name.trim().length === 0);
+        if (invalidSections.length > 0) {
+          error.value = 'Alle secties moeten een naam hebben';
+          showError('Alle secties moeten een naam hebben');
+          saving.value = false;
+          return;
+        }
+      }
     }
 
     if (editingItem.value) {

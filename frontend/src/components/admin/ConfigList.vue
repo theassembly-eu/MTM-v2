@@ -20,6 +20,18 @@
             <div v-if="item.places && item.places.length > 0" class="item-places">
               <strong>Plaatsen:</strong> {{ item.places.join(', ') }}
             </div>
+            <!-- Output Format Specific Info -->
+            <div v-if="itemType === 'format'" class="format-info">
+              <div v-if="item.requiresImageSuggestion" class="format-badge">
+                📷 Image Suggestion
+              </div>
+              <div v-if="item.outputStructure && item.outputStructure.sections && item.outputStructure.sections.length > 0" class="format-badge">
+                📋 {{ item.outputStructure.sections.length }} {{ item.outputStructure.sections.length === 1 ? 'sectie' : 'secties' }}
+              </div>
+              <div v-else class="format-badge format-badge-default">
+                🔄 Standaard structuur
+              </div>
+            </div>
           </div>
           <div class="item-actions">
             <button @click="$emit('edit', item)" class="btn-edit">Bewerken</button>
@@ -140,6 +152,28 @@ const itemTypeLabel = computed(() => {
 .item-places strong {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-medium);
+}
+
+.format-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.format-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.format-badge-default {
+  background: var(--color-text-tertiary);
 }
 
 .item-actions {
