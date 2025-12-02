@@ -257,13 +257,23 @@ function removeSection(section) {
 function moveSection(index, direction) {
   const sorted = sortedSections.value;
   if (direction === 'up' && index > 0) {
-    const temp = sorted[index].order;
-    sorted[index].order = sorted[index - 1].order;
-    sorted[index - 1].order = temp;
+    // Find the actual sections in the original array
+    const sectionToMove = sorted[index];
+    const sectionToSwap = sorted[index - 1];
+    
+    // Swap orders
+    const tempOrder = sectionToMove.order;
+    sectionToMove.order = sectionToSwap.order;
+    sectionToSwap.order = tempOrder;
   } else if (direction === 'down' && index < sorted.length - 1) {
-    const temp = sorted[index].order;
-    sorted[index].order = sorted[index + 1].order;
-    sorted[index + 1].order = temp;
+    // Find the actual sections in the original array
+    const sectionToMove = sorted[index];
+    const sectionToSwap = sorted[index + 1];
+    
+    // Swap orders
+    const tempOrder = sectionToMove.order;
+    sectionToMove.order = sectionToSwap.order;
+    sectionToSwap.order = tempOrder;
   }
 }
 
