@@ -155,6 +155,14 @@ function buildOutputFormatSection(outputFormat) {
         formatInstruction = 'Provide the output in bullet points.';
         listAvoidance = '';
         break;
+      default:
+        // For new formats without description, provide a generic instruction
+        formatInstruction = `Provide content in the ${outputFormat.name} format.`;
+        // Log warning if outputStructure is defined but description is missing
+        if (outputFormat.outputStructure?.sections?.length > 0) {
+          console.log(`Output format "${outputFormat.name}" has custom outputStructure but no description. Using generic description.`);
+        }
+        break;
     }
   }
 
@@ -291,21 +299,67 @@ function buildBaseInstructionsSection() {
 
 /**
  * Build output structure section
+ * Uses outputStructure from database if available, falls back to hardcoded structure for backward compatibility
  * @param {Object} outputFormat - Output format object
  * @param {boolean} requiresImageSuggestion - Whether image suggestion is required
  * @returns {string} Output structure prompt section
  */
 function buildOutputStructureSection(outputFormat, requiresImageSuggestion) {
-  let structureParts = [
-    'Emotional Core Message: Start with a strong, emotional core message about people.',
-    'Problem Statement: Name the problem briefly and clearly.',
-    'Concluding Message: Conclude with a clear, impactful message.',
-    `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
-  ];
+  let structureParts = [];
   
-  // Add image suggestion section if required by output format
-  if (requiresImageSuggestion) {
-    structureParts.push('Image Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]');
+  // Check if outputFormat has a custom outputStructure defined
+  if (outputFormat?.outputStructure?.sections && Array.isArray(outputFormat.outputStructure.sections) && outputFormat.outputStructure.sections.length > 0) {
+    // Use custom structure from database
+    // Sort sections by order if specified
+    const sortedSections = [...outputFormat.outputStructure.sections].sort((a, b) => {
+      const orderA = a.order !== undefined ? a.order : 999;
+      const orderB = b.order !== undefined ? b.order : 999;
+      return orderA - orderB;
+    });
+    
+    // Build structure parts from custom sections
+    sortedSections.forEach(section => {
+      let sectionText = section.name;
+      if (section.description && section.description.trim().length > 0) {
+        sectionText += `: ${section.description}`;
+      } else {
+        // Provide default description if none specified
+        sectionText += `: Provide content for the ${section.name} section.`;
+      }
+      
+      // Mark required sections explicitly
+      if (section.required !== false) {
+        sectionText += ' [REQUIRED]';
+      }
+      
+      structureParts.push(sectionText);
+    });
+    
+    // Add image suggestion section if required (even if not in custom structure)
+    if (requiresImageSuggestion) {
+      // Check if image suggestion is already in the custom structure
+      const hasImageSection = sortedSections.some(s => 
+        s.name.toLowerCase().includes('image') || 
+        s.name.toLowerCase().includes('suggestion')
+      );
+      
+      if (!hasImageSection) {
+        structureParts.push('Image Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]');
+      }
+    }
+  } else {
+    // Fallback to hardcoded structure for backward compatibility
+    structureParts = [
+      'Emotional Core Message: Start with a strong, emotional core message about people.',
+      'Problem Statement: Name the problem briefly and clearly.',
+      'Concluding Message: Conclude with a clear, impactful message.',
+      `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
+    ];
+    
+    // Add image suggestion section if required by output format
+    if (requiresImageSuggestion) {
+      structureParts.push('Image Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]');
+    }
   }
   
   let section = `Structure your response as follows, clearly separating each part with a "---" separator, and use paragraphs and line breaks for readability:\n`;
@@ -516,15 +570,56 @@ function prepareTemplateContext({
   }
   
   // Prepare structure parts
-  let structureParts = [
-    'Emotional Core Message: Start with a strong, emotional core message about people.',
-    'Problem Statement: Name the problem briefly and clearly.',
-    'Concluding Message: Conclude with a clear, impactful message.',
-    `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
-  ].join('\n---\n');
+  // Use outputStructure from database if available, otherwise fall back to hardcoded structure
+  let structureParts = '';
   
-  if (requiresImageSuggestion) {
-    structureParts += '\n---\nImage Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]';
+  if (outputFormat?.outputStructure?.sections && Array.isArray(outputFormat.outputStructure.sections) && outputFormat.outputStructure.sections.length > 0) {
+    // Use custom structure from database
+    const sortedSections = [...outputFormat.outputStructure.sections].sort((a, b) => {
+      const orderA = a.order !== undefined ? a.order : 999;
+      const orderB = b.order !== undefined ? b.order : 999;
+      return orderA - orderB;
+    });
+    
+    const parts = sortedSections.map(section => {
+      let sectionText = section.name;
+      if (section.description && section.description.trim().length > 0) {
+        sectionText += `: ${section.description}`;
+      } else {
+        sectionText += `: Provide content for the ${section.name} section.`;
+      }
+      if (section.required !== false) {
+        sectionText += ' [REQUIRED]';
+      }
+      return sectionText;
+    });
+    
+    // Add image suggestion if required and not already in structure
+    if (requiresImageSuggestion) {
+      const hasImageSection = sortedSections.some(s => 
+        s.name.toLowerCase().includes('image') || 
+        s.name.toLowerCase().includes('suggestion')
+      );
+      if (!hasImageSection) {
+        parts.push('Image Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]');
+      }
+    }
+    
+    structureParts = parts.join('\n---\n');
+  } else {
+    // Fallback to hardcoded structure for backward compatibility
+    const parts = [
+      'Emotional Core Message: Start with a strong, emotional core message about people.',
+      'Problem Statement: Name the problem briefly and clearly.',
+      'Concluding Message: Conclude with a clear, impactful message.',
+      `${outputFormat?.name === 'Samenvatting' ? 'Summary' : 'Simplified Text'}: Provide the main simplified content.`
+    ];
+    
+    if (requiresImageSuggestion) {
+      parts.push('Image Suggestion: [MANDATORY - YOU MUST INCLUDE THIS SECTION] Provide a compelling, detailed image description for this Instagram post. The description should be emotionally engaging, relevant to the simplified content, and suitable for a Belgian audience. Describe the visual elements, mood, colors, composition, and any people or objects that should be included. This section is REQUIRED and must be included in your response. Format: ---\nImage Suggestion: [your detailed description here]');
+    }
+    
+    structureParts = parts.join('\n---\n');
   }
   
   let imageSuggestionReminderForStructure = '';

@@ -113,6 +113,24 @@ router.post('/output-formats', authenticate, requireRole('SUPER_ADMIN'), async (
     };
     
     if (outputStructure) {
+      // Validate outputStructure format
+      if (typeof outputStructure !== 'object' || !outputStructure.sections || !Array.isArray(outputStructure.sections)) {
+        return res.status(400).json({ 
+          error: 'Invalid outputStructure format. Expected object with "sections" array.',
+          code: 'INVALID_STRUCTURE'
+        });
+      }
+      
+      // Validate each section
+      for (const section of outputStructure.sections) {
+        if (!section.name || typeof section.name !== 'string' || section.name.trim().length === 0) {
+          return res.status(400).json({ 
+            error: 'Each section in outputStructure must have a non-empty "name" field.',
+            code: 'INVALID_SECTION'
+          });
+        }
+      }
+      
       formatData.outputStructure = outputStructure;
     }
     
@@ -152,7 +170,29 @@ router.put('/output-formats/:id', authenticate, requireRole('SUPER_ADMIN'), asyn
     if (description !== undefined) format.description = description;
     if (requiresImageSuggestion !== undefined) format.requiresImageSuggestion = requiresImageSuggestion;
     if (requiresStructuredOutput !== undefined) format.requiresStructuredOutput = requiresStructuredOutput;
-    if (outputStructure !== undefined) format.outputStructure = outputStructure;
+    if (outputStructure !== undefined) {
+      // Validate outputStructure format
+      if (outputStructure !== null && (typeof outputStructure !== 'object' || !outputStructure.sections || !Array.isArray(outputStructure.sections))) {
+        return res.status(400).json({ 
+          error: 'Invalid outputStructure format. Expected object with "sections" array or null.',
+          code: 'INVALID_STRUCTURE'
+        });
+      }
+      
+      // Validate each section if provided
+      if (outputStructure && outputStructure.sections) {
+        for (const section of outputStructure.sections) {
+          if (!section.name || typeof section.name !== 'string' || section.name.trim().length === 0) {
+            return res.status(400).json({ 
+              error: 'Each section in outputStructure must have a non-empty "name" field.',
+              code: 'INVALID_SECTION'
+            });
+          }
+        }
+      }
+      
+      format.outputStructure = outputStructure;
+    }
     if (behavioralRules !== undefined) format.behavioralRules = behavioralRules;
     
     await format.save();
