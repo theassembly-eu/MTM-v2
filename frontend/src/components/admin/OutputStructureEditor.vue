@@ -148,33 +148,79 @@ const emit = defineEmits(['update:modelValue']);
 
 const sections = ref([]);
 let tempIdCounter = 0;
+let isUpdatingFromProps = false;
+let lastEmittedValue = null;
 
-// Initialize sections from modelValue
-watch(() => props.modelValue, (newValue) => {
-  if (newValue && newValue.sections) {
-    sections.value = newValue.sections.map(s => ({
-      ...s,
-      _tempId: s._tempId || `temp_${tempIdCounter++}`,
-      required: s.required !== undefined ? s.required : true,
-      order: s.order !== undefined ? s.order : 999,
-    }));
-  } else {
-    sections.value = [];
-  }
-}, { immediate: true, deep: true });
-
-// Watch for changes and emit updates
-watch(sections, (newSections) => {
-  const cleanSections = newSections.map(({ _tempId, _error, ...section }) => ({
+// Helper to normalize sections for comparison
+function normalizeSections(sections) {
+  return sections.map(({ _tempId, _error, ...section }) => ({
     name: section.name || '',
     description: section.description || '',
     required: section.required !== false,
     order: section.order !== undefined ? section.order : 999,
   }));
+}
+
+// Helper to compare sections
+function sectionsEqual(sections1, sections2) {
+  if (!sections1 && !sections2) return true;
+  if (!sections1 || !sections2) return false;
+  if (sections1.length !== sections2.length) return false;
   
-  emit('update:modelValue', {
-    sections: cleanSections,
-  });
+  const norm1 = normalizeSections(sections1);
+  const norm2 = normalizeSections(sections2);
+  
+  return JSON.stringify(norm1) === JSON.stringify(norm2);
+}
+
+// Initialize sections from modelValue
+watch(() => props.modelValue, (newValue) => {
+  // Prevent circular updates
+  if (isUpdatingFromProps) return;
+  
+  const newSections = newValue?.sections || [];
+  const currentNormalized = normalizeSections(sections.value);
+  const newNormalized = normalizeSections(newSections);
+  
+  // Only update if actually different
+  if (!sectionsEqual(sections.value, newSections)) {
+    isUpdatingFromProps = true;
+    
+    if (newSections.length > 0) {
+      sections.value = newSections.map(s => ({
+        ...s,
+        _tempId: s._tempId || `temp_${tempIdCounter++}`,
+        required: s.required !== undefined ? s.required : true,
+        order: s.order !== undefined ? s.order : 999,
+      }));
+    } else {
+      sections.value = [];
+    }
+    
+    lastEmittedValue = JSON.stringify(newNormalized);
+    
+    // Reset flag after a microtask to allow other updates
+    setTimeout(() => {
+      isUpdatingFromProps = false;
+    }, 0);
+  }
+}, { immediate: true, deep: true });
+
+// Watch for changes and emit updates
+watch(sections, (newSections) => {
+  // Prevent circular updates
+  if (isUpdatingFromProps) return;
+  
+  const cleanSections = normalizeSections(newSections);
+  const cleanValue = JSON.stringify(cleanSections);
+  
+  // Only emit if value actually changed
+  if (cleanValue !== lastEmittedValue) {
+    lastEmittedValue = cleanValue;
+    emit('update:modelValue', {
+      sections: cleanSections,
+    });
+  }
 }, { deep: true });
 
 const sortedSections = computed(() => {
