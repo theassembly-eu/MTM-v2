@@ -150,9 +150,11 @@ const sections = ref([]);
 let tempIdCounter = 0;
 let isUpdatingFromProps = false;
 let lastEmittedValue = null;
+let updateTimeout = null;
 
 // Helper to normalize sections for comparison
 function normalizeSections(sections) {
+  if (!sections || !Array.isArray(sections)) return [];
   return sections.map(({ _tempId, _error, ...section }) => ({
     name: section.name || '',
     description: section.description || '',
@@ -173,53 +175,69 @@ function sectionsEqual(sections1, sections2) {
   return JSON.stringify(norm1) === JSON.stringify(norm2);
 }
 
-// Initialize sections from modelValue
+// Initialize sections from modelValue - only on mount or when props actually change
 watch(() => props.modelValue, (newValue) => {
-  // Prevent circular updates
-  if (isUpdatingFromProps) return;
-  
-  const newSections = newValue?.sections || [];
-  const currentNormalized = normalizeSections(sections.value);
-  const newNormalized = normalizeSections(newSections);
-  
-  // Only update if actually different
-  if (!sectionsEqual(sections.value, newSections)) {
-    isUpdatingFromProps = true;
+  try {
+    // Prevent circular updates
+    if (isUpdatingFromProps) return;
     
-    if (newSections.length > 0) {
-      sections.value = newSections.map(s => ({
-        ...s,
-        _tempId: s._tempId || `temp_${tempIdCounter++}`,
-        required: s.required !== undefined ? s.required : true,
-        order: s.order !== undefined ? s.order : 999,
-      }));
-    } else {
-      sections.value = [];
+    const newSections = newValue?.sections || [];
+    
+    // Only update if actually different
+    if (!sectionsEqual(sections.value, newSections)) {
+      isUpdatingFromProps = true;
+      
+      if (newSections.length > 0) {
+        sections.value = newSections.map(s => ({
+          ...s,
+          _tempId: s._tempId || `temp_${tempIdCounter++}`,
+          required: s.required !== undefined ? s.required : true,
+          order: s.order !== undefined ? s.order : 999,
+        }));
+      } else {
+        sections.value = [];
+      }
+      
+      const newNormalized = normalizeSections(newSections);
+      lastEmittedValue = JSON.stringify(newNormalized);
+      
+      // Reset flag after a microtask to allow other updates
+      setTimeout(() => {
+        isUpdatingFromProps = false;
+      }, 0);
+    }
+  } catch (error) {
+    console.error('Error in OutputStructureEditor watch:', error);
+    isUpdatingFromProps = false;
+  }
+}, { immediate: true });
+
+// Debounced watch for changes - emit updates with debounce to prevent excessive updates
+watch(sections, (newSections) => {
+  try {
+    // Prevent circular updates
+    if (isUpdatingFromProps) return;
+    
+    // Clear any pending updates
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
     }
     
-    lastEmittedValue = JSON.stringify(newNormalized);
-    
-    // Reset flag after a microtask to allow other updates
-    setTimeout(() => {
-      isUpdatingFromProps = false;
-    }, 0);
-  }
-}, { immediate: true, deep: true });
-
-// Watch for changes and emit updates
-watch(sections, (newSections) => {
-  // Prevent circular updates
-  if (isUpdatingFromProps) return;
-  
-  const cleanSections = normalizeSections(newSections);
-  const cleanValue = JSON.stringify(cleanSections);
-  
-  // Only emit if value actually changed
-  if (cleanValue !== lastEmittedValue) {
-    lastEmittedValue = cleanValue;
-    emit('update:modelValue', {
-      sections: cleanSections,
-    });
+    // Debounce the emit to prevent excessive updates during typing
+    updateTimeout = setTimeout(() => {
+      const cleanSections = normalizeSections(newSections);
+      const cleanValue = JSON.stringify(cleanSections);
+      
+      // Only emit if value actually changed
+      if (cleanValue !== lastEmittedValue) {
+        lastEmittedValue = cleanValue;
+        emit('update:modelValue', {
+          sections: cleanSections,
+        });
+      }
+    }, 300); // 300ms debounce
+  } catch (error) {
+    console.error('Error in OutputStructureEditor sections watch:', error);
   }
 }, { deep: true });
 
