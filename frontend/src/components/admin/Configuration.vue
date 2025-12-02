@@ -368,7 +368,10 @@ function editItem(item) {
   showModal.value = true;
 }
 
+const modalCloseGuard = ref(false);
+
 function closeModal() {
+  modalCloseGuard.value = true;
   showModal.value = false;
   editingItem.value = null;
   editingType.value = null;
@@ -383,6 +386,10 @@ function closeModal() {
     behavioralRules: [],
   };
   placesText.value = '';
+  // Reset guard after cleanup
+  setTimeout(() => {
+    modalCloseGuard.value = false;
+  }, 100);
 }
 
 async function saveItem() {
