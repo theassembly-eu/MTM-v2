@@ -206,7 +206,6 @@ const getInitialTab = () => {
 };
 
 const activeTab = ref(getInitialTab());
-const showModal = ref(false);
 const editingItem = ref(null);
 const editingType = ref(null);
 
