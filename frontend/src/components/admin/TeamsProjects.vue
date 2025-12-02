@@ -594,19 +594,38 @@ function openCreateProjectModal(team) {
 
 function editTeam(team) {
   editingTeam.value = team;
+  // Extract IDs from populated objects if needed
+  const lvlIds = (team.lvls || []).map(lvl => {
+    // Handle both populated objects and IDs
+    return typeof lvl === 'object' && lvl._id ? lvl._id : lvl;
+  });
+  const memberIds = (team.members || []).map(member => {
+    // Handle both populated objects and IDs
+    return typeof member === 'object' && member._id ? member._id : member;
+  });
+  
   teamForm.value = {
     name: team.name,
-    lvls: [...team.lvls],
-    members: [...team.members],
+    lvls: lvlIds,
+    members: memberIds,
   };
 }
 
 function editProject(project) {
   editingProject.value = project;
+  // Extract IDs from populated objects if needed
+  const lvlIds = (project.lvls || []).map(lvl => {
+    // Handle both populated objects and IDs
+    return typeof lvl === 'object' && lvl._id ? lvl._id : lvl;
+  });
+  const teamId = typeof project.team === 'object' && project.team._id 
+    ? project.team._id 
+    : project.team;
+  
   projectForm.value = {
     name: project.name,
-    team: project.team,
-    lvls: [...project.lvls],
+    team: teamId,
+    lvls: lvlIds,
     description: project.description || '',
   };
 }
