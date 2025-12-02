@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import EmptyState from '../common/EmptyState.vue';
 
 const props = defineProps({
@@ -176,15 +176,20 @@ function sectionsEqual(sections1, sections2) {
 }
 
 // Initialize sections from modelValue - only on mount or when props actually change
-watch(() => props.modelValue, (newValue) => {
+watch(() => props.modelValue, (newValue, oldValue) => {
   try {
     // Prevent circular updates
     if (isUpdatingFromProps) return;
     
+    // Skip if value hasn't actually changed (reference equality check first)
+    if (newValue === oldValue) return;
+    
     // Safety check for invalid data
     if (!newValue || typeof newValue !== 'object') {
       if (sections.value.length > 0) {
+        isUpdatingFromProps = true;
         sections.value = [];
+        isUpdatingFromProps = false;
       }
       return;
     }
@@ -213,10 +218,8 @@ watch(() => props.modelValue, (newValue) => {
       const newNormalized = normalizeSections(newSections);
       lastEmittedValue = JSON.stringify(newNormalized);
       
-      // Reset flag after a microtask to allow other updates
-      setTimeout(() => {
-        isUpdatingFromProps = false;
-      }, 0);
+      // Reset flag immediately since we're not emitting
+      isUpdatingFromProps = false;
     }
   } catch (error) {
     console.error('Error in OutputStructureEditor watch:', error);
@@ -321,6 +324,14 @@ function validateSection(section) {
     section._error = null;
   }
 }
+
+// Cleanup timeout on unmount
+onBeforeUnmount(() => {
+  if (updateTimeout) {
+    clearTimeout(updateTimeout);
+    updateTimeout = null;
+  }
+});
 </script>
 
 <style scoped>
